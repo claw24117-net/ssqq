@@ -1,0 +1,42 @@
+# Build results
+obj/
+bin/
+*.dll
+*.exe
+*.pdb
+
+# Visual Studio
+.vs/
+.vscode/
+*.sln.DotSettings
+*.user
+*.vcxproj.user
+
+# NuGet
+packages/
+*.nupkg
+*.nuspec
+
+# IDE
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Temp files
+*.tmp
+*.temp
+*.log
+
+# OS specific
+Thumbs.db
+.DS_Store
+
+# Rider
+.idea/
+*.sln.iml
+
+# User-specific
+*.suo
+*.db
