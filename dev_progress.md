@@ -3,8 +3,8 @@
 ## 프로젝트 개요
 - **프로젝트명**: 배달 주문 수신기
 - **플랫폼**: Windows 전용 (데스크톱 앱)
-- **현재 버전**: v2.0.4
-- **상태**: v2.0.4 코드 완성 + BUG-001 수정 완료 + 코드 검증 완료, 빌드/배포 PM 지시 대기 중
+- **현재 버전**: v3.0.1 (git 트래킹 라벨; csproj `Version`은 2.0.4 유지, 운영 배포 버전과 별도)
+- **상태**: v3.0.1 git 코드 완성 (BUG-001/004, W-TIME, W-RETRY 수정 반영). 운영 배포 상태는 git과 분리 트래킹. 잔여 미테스트(P2) + 보안(B-4/B-5) + 동시쓰기(C-3/C-4) PM 지시 대기
 
 ---
 
@@ -382,67 +382,41 @@ PC 재부팅
 - [x] 종료 시 버퍼 데이터 처리 완료 후 종료 (v2.0.1에서 구현)
 - [x] 로컬 JSON 파일 손상 방지 (v2.0.1에서 임시 파일 교체 구현)
 
-### 버그 진행 상태
+### 해결됨 (v3.0.1 git 코드 기준)
 
-#### BUG-001: "자동 로그인" 미체크 시 토큰 삭제 버그
-- **심각도**: 긴급 — 서버 업로드 0건 원인이었음
-- **파일**: Forms/MainForm.cs LoginButton_Click 메서드 (현 코드 라인 749-759)
-- **원인 코드 (v2.0.3 이전, 제거됨)**:
-  ```csharp
-  if (!_autoLoginCheckBox.Checked)
-  {
-      _config.Token = "";  // 로그인 직후 토큰 삭제
-  }
-  _config.Save();
-  ```
-- **증상**: 로그인 성공해도 토큰이 비어서 업로드 시 "로그인이 필요합니다" 에러
-- **영향**: v2.0.0~v2.0.3 동안 서버 업로드 성공 0건. 모든 주문이 로컬에만 저장
-- **근거 없이 추가한 코드**: 기획서에 "자동 로그인 미체크 시 토큰 삭제" 항목 없음. 리더가 임의로 추가
-- **수정 내용 (v2.0.4)**: 토큰 삭제 코드 제거. autoLogin 플래그만 저장. 현재 세션 토큰은 유지
-- **상태**: ✅ **코드 수정 완료 (v2.0.4)** — `MainForm.cs:749-759` 에 토큰 삭제 코드 없음
-- **남은 작업**: 빌드/배포 후 실업로드 동작 검증 (PM 빌드 지시 대기)
+> 단일 진실 출처: 각 항목 상세는 `issue_matrix.md` C-1/C-2/B-* 행. 본 섹션은 한 항목 한 줄.
 
-#### BUG-002: 로컬에만 쌓인 주문 서버 미전송
-- **심각도**: 긴급
-- **원인**: BUG-001로 인해 모든 업로드 실패
-- **영향**: 수신된 모든 주문이 로컬 JSON 파일에만 존재, 서버 raw_receipts 0건
-- **수정 방법**: BUG-001 수정 후 "재전송" 버튼으로 실패 건 재업로드
-- **상태**: 🔄 BUG-001 코드 수정 완료. 빌드/배포 + 재전송 버튼 실행 대기
-- **남은 작업**: v2.0.4 빌드 + 배포 + 재전송 버튼으로 누적분 일괄 재업로드
+- [x] BUG-001: "자동 로그인" 미체크 시 토큰 삭제 버그 — `_config.Token = ""` if 블록 제거. Forms/MainForm.cs LoginButton_Click(L726). 현재 `_config.Token = ""`은 LogoutButton_Click(L1456)에만 존재
+- [x] BUG-002: 로컬 누적 주문 서버 전송 가능 — BUG-004 수정으로 토큰 추출 정상화 (재전송 실동작은 PM 미테스트 항목으로 이동)
+- [x] BUG-003: 재전송 버튼 코드 존재 — Forms/MainForm.cs:1034 RetryUploadBtn_Click 구현됨 (실동작 검증은 PM 미테스트로 이동)
+- [x] BUG-004: AuthService 토큰 추출 필드명 수정 — `data.userSessionToken` 경로 (Services/AuthService.cs:55-69)
+- [x] W-TIME: 시간대 — Forms/MainForm.cs:884 `DateTime.UtcNow.ToString("o")` (정상 UTC, 옛 `DateTime.Now` 버그 제거됨)
+- [x] W-RETRY: 재전송 실패 시 lastError 표시
 
-#### BUG-003: 재전송 버튼 동작 미검증
-- **심각도**: 중간
-- **원인**: `RetryUploadBtn_Click` 구현됨, 실제 테스트 안 함
-- **위치**: `MainForm.cs:1034-1093`
-- **확인 필요**: 실패 상태 주문을 실제로 서버에 재전송하는지 + 401 자동 재로그인 분기까지
-- **상태**: [ ] 코드 존재, 실테스트 미완 (v2.0.4 배포 후 PM 검증)
+### 미해결 — 보안 (PM 빌드 지시 대기)
+- [ ] **B-4**: config.json `token` 평문 저장 — Models/LoginConfig.cs:11
+       방향: Windows DPAPI(`ProtectedData.Protect`, scope=CurrentUser)
+- [ ] **B-5**: config.json `password` 평문 저장 — Models/LoginConfig.cs:20, Save() L46-
+       방향: 동일. 단일 사용자 PC 한정 복호화 (매장 공용 PC 시나리오 적합)
 
-### 미해결 — v2.0.4 기준 잔여 항목
+### 미해결 — 데이터 무결성 (PM 빌드 지시 대기)
+- [ ] **C-3**: 주문 JSON 동시 쓰기 잠금 없음
+       위치: Services/OrderStorageService.cs Save() L52-76, UpdateStatus() L81-101
+       현재: File.WriteAllText + File.Replace, FileShare 미설정
+- [ ] **C-4**: config.json 동시 쓰기 잠금 없음 — Models/LoginConfig.cs Save() L46
 
-#### P0 (가장 긴급)
-- [ ] **v2.0.4 빌드** — `dotnet publish -c Release -r win-x64 --self-contained`. 현재 macOS 환경에 dotnet 미설치 → Windows 빌드 호스트(Parallels) 또는 dotnet 설치 필요
-- [ ] **PM 빌드/배포 지시 대기** — 2026-04-03 PM 빌드 금지 지시. 지시 받기 전 빌드/배포 금지
-- [ ] **v2.0.4 서버 배포** — `zigso.kr releases/2.0.4/` + manifest.json + latest.json 갱신 (빌드 후)
+### 미해결 — PM 미테스트 (실기기 필요)
+- [ ] 재부팅 자동 시작 실재부팅 (W-701~702, W-1101~1105 / Program.cs:16-26 코드 검증만 완료)
+- [ ] 자동 재로그인 + 만료 토큰 흐름 (W-104, W-1205)
+- [ ] 포트 관리/삭제 실기기 (W-203, 208, 301~305)
+- [ ] v2.0.1 신규 기능 실사용 (W-1201~1207)
+- [ ] BUG-003 재전송 버튼 실동작 (Forms/MainForm.cs:1034 RetryUploadBtn_Click — 401 자동 재로그인 분기까지)
+- [ ] 화면 레이아웃 최종 확인
+- [ ] 날짜별 저장/중복 감지 실동작 확인
 
-#### P1 (배포 후 검증)
-- [ ] 서버 FK 문제 해결 후 실업로드 동작 테스트 (BUG-001 코드 수정 → 빌드 → 검증)
-- [ ] epposon0@gmail.com 패스워드 변경 완료 — 윈도우 프로그램에서 Zigso2026!로 재로그인 필요
-- [ ] 로컬 누적 실패 건 일괄 재전송 (BUG-002 해결)
-- [ ] BUG-003 재전송 버튼 실동작 검증 (`MainForm.cs:1034-1093`)
-- [ ] 화면 레이아웃 최종 확인 (PM 테스트)
-- [ ] 날짜별 저장/중복 감지 실동작 확인 (PM 테스트, 코드 검증은 완료)
-- [ ] 자동 재로그인 실동작 확인 (PM 테스트, 코드 검증은 완료)
-- [ ] 재부팅 자동 시작 실재부팅 테스트 (코드는 Program.cs:16-26 검증 완료)
-- [ ] 서버 수정 후 CORS/기존 엔드포인트/기존 페이지 정상 동작 확인 (PM 테스트 필요)
-
-#### P2 (시간대 관련)
-- [ ] **시간대 버그**: `MainForm.cs:884` `DateTime.UtcNow.ToString("o")` — 출력에 `Z` 접미사가 붙어 KST와 9시간 차이로 혼동. `DateTimeOffset.UtcNow` 또는 `"Z"` 제거 필요
-- [ ] **시간대 자동 변환**: 한국(KST) 기준 표시 + 향후 각 나라 시간대 자동 맞춤 (PM 요구사항)
-
-#### P3 (보안/품질)
-- [ ] **Password 평문 저장**: `LoginConfig.cs:20` Password를 `%APPDATA%/DeliveryOrderReceiver/config.json`에 평문으로 저장. Windows DPAPI 등 암호화 필요
-- [ ] **관리자 비밀번호 하드코딩**: 설정 모드 진입 비밀번호 `"0000"` 하드코딩, 변경 UI 없음
-- [ ] **MainForm.cs 1671줄 분리**: GUI + 모든 비즈니스 로직 통합 → 단일 책임 분리 필요 (테스트 가능성 향상)
+### 미해결 — 코드 품질 (PM 우선순위 대기)
+- [ ] 관리자 비밀번호 하드코딩 — 설정 모드 진입 비밀번호 `"0000"` 하드코딩, 변경 UI 없음
+- [ ] Forms/MainForm.cs 1671줄 분리 — GUI + 비즈니스 로직 통합 → 단일 책임 분리
 - [ ] 기획서에 없는 코드가 다른 곳에도 있는지 전수 확인
 
 ### 코드 작성 규칙 위반 기록
@@ -521,6 +495,87 @@ _config.Save();
 - **최초 1회 설정**: 포트 생성은 설치 시 1회만. 이후 포트 문제 없는 한 설정 안 들어감
 - **윈도우 프로그램 방향**: DeliveryOrderReceiver(claude-1/)가 메인. 코덱스 windows-agent(server/agents/)는 참고용 보관
 - **윈도우↔웹 세션 분리**: 윈도우 프로그램 로그인(config.json 토큰)과 웹 로그인(localStorage 토큰)은 별개 세션. 같은 계정이라도 각각 로그인 필요
+- **두 클라이언트 경계 (단일 진실 출처)**:
+  - DeliveryOrderReceiver (`ssqq/DeliveryOrderReceiver/`):
+      C# .NET 8 WinForms (`net8.0-windows`, `PublishSingleFile`+`SelfContained` win-x64,
+      DeliveryOrderReceiver.csproj 기준), com0com 가상 COM 직결, 매장천사 운영 매장 전용,
+      단일 창 GUI, 매장 운영자 PC 1대 1 설치
+  - Windows Agent (`server/agents/windows-agent/`):
+      C# .NET 백그라운드 서비스(`WindowsAgentBackgroundService`), MSI 배포,
+      file_watch/serial/receipt_printer 3축 (CaptureAdapters.cs),
+      zigso.kr 다운로드 + site_owner/org_operator 권한
+      (`/management/devices/download`, unified-plan-v1.md §8-12)
+  - 공유 서버 API: `POST /v2/agent/auth/login`, `POST /v2/agent/uploads/receipt-raw`
+    (자세한 파일/라인은 아래 "서버 측 계약" 항목 참조)
+  - 합치지 않는다. windows-agent 전체 기획은
+    `server/docs/architecture/windows-agent-unified-plan-v1.md` 참조 (이 기획서 범위 밖).
+- **가상프린터 운영 경계 (절대 건드리지 않음, 인용만)**:
+  - 구현 상태: `ReceiptPrinterCaptureAdapter` (server/agents/windows-agent/CaptureAdapters.cs)
+    가 MSI에 실려 있고 `AgentSettings.CaptureSettings.SourceType` 기본값이
+    `"receipt_printer"` (AgentSettings.cs)이며 `AgentRuntime` fallback이 여기로 라우팅된다.
+    그러나 **실제 Windows 가상 프린터 드라이버 설치/스풀 캡처/실제 프린터 재전달은
+    Phase 4 미구현**이다 (unified-plan-v1.md §8-3 "현재 상태 메모").
+  - 운영 금지 (unified-plan-v1.md §8-3 / §8-7):
+      · 실제 프린터 제거 금지
+      · 기존 프린터 포트 임의 변경 금지
+      · 종이 출력이 끊기는 단일 가상 프린터 강제 전환 금지
+      · 운영 중 POS의 COM19 사전 검증 없이 변경 금지
+      · 실매장에서 즉시 엔진 서비스 자동등록 금지
+  - 이 기획서는 가상프린터 관련 코드/설정/UX/배포를 다루지 않는다.
+    단일 진실 출처는 `windows-agent-unified-plan-v1.md` §8-1~§8-11이며,
+    모든 업데이트는 거기서만 이루어진다.
+- **서버 측 계약 (authoritative 참조, 수정 X)**:
+  v3.0.1 git 코드의 DOR ↔ 서버는 호환. 서버 코드 변경 필요 없음 (정합성 점검 2026-04-08).
+  아래 파일들은 참조 전용 (단일 진실 출처):
+  - `server/apps/api/src/routes/agent-routes.js`
+      · POST /v2/agent/auth/login — 응답: `data.userSessionToken`, `data.user`,
+        `data.organizations`, `data.sites[]` (buildAuthSessionPayload)
+      · POST /v2/agent/devices/register — Bearer 필수
+      · POST /v2/agent/uploads/receipt-raw — dual auth:
+        1) `requireDeviceApiKeyFromRequest` (우선)
+        2) 실패 시 `requireUserSessionFromRequest` + 가상 디바이스 자동생성
+        필수: `Authorization: Bearer {token}`, `Idempotency-Key: {hash}`,
+        body: eventId/siteId/platformId/platformStoreId/capturedAt/rawChecksum/decodedText/port
+      · POST /v2/agent/heartbeat, GET /v2/agent/bootstrap
+      · 로그인 rate limit (5분간 5회/30초 잠금)
+  - `server/apps/api/src/server.js`
+      · requireUserSessionFromRequest, requireDeviceApiKeyFromRequest
+      · validateLoginBody, bodyLimit 1MB
+  - `server/packages/contracts/src/contracts.js`
+      · wrapDataEnvelope — `{data, meta:{requestId}}` 래핑
+  - `server/packages/db/src/postgres-store.js`
+      · recordAuditLog / listManagementAuditLogs, scrypt 해싱, updateUploadJobStatus
+  - DOR 측 매칭 코드 (호환 검증 완료):
+      · Services/AuthService.cs:55-69 — `data.userSessionToken` 경로 (BUG-004 수정 반영)
+      · Services/UploadService.cs — Bearer + Idempotency-Key 송신
+  - 이 목록을 박는 이유: 향후 DPAPI(B-4/B-5) 또는 파일 잠금(C-3/C-4) 구현 시
+    이 요청/응답 shape을 깨지 않도록 reviewer가 한눈에 확인 가능해야 함.
+- **현 개발/배포 방법 (2026-04-08 기준, PM 지시 전까지 변경 금지)**:
+  - DeliveryOrderReceiver 빌드:
+      · 빌드 호스트: Mac mini → Parallels Windows 11 VM (`prlctl exec "Windows 11" powershell`)
+      · 빌드 명령: `dotnet publish -c Release -r win-x64 --self-contained true`
+      · csproj: net8.0-windows / WinExe / PublishSingleFile=true / SelfContained=true
+      · 산출물: self-contained exe 약 154MB
+      · **빌드 스크립트 없음** (windows-agent와 달리 .ps1 미존재)
+      · **release-manifest 엔트리 없음** (server/docs/release-manifest/ 체계 미연결)
+      · 배포: SSH `min@zigso.kr` → `/app/storage/windows-agent/releases/{version}/`
+              + `manifest.json`, `latest.json` 수동 갱신
+  - **git ↔ 운영 sync 주의**: git 트래킹 코드(v3.0.1)와 운영 배포 버전이
+    별도로 관리되고 있음. 운영 직접 패치/force push 금지. 운영 상태 확인은
+    SSH 또는 PM 확인 필요.
+  - Windows Agent 빌드 (참고, 본 작업 대상 아님):
+      · `server/agents/windows-agent/scripts/publish-win-x64.ps1`
+      · `server/agents/windows-agent/scripts/build-msi.ps1` (WiX v4+)
+      · `server/agents/windows-agent/installer/Product.wxs`
+  - 서버 빌드/배포 (참고, 본 작업 대상 아님):
+      · `server/scripts/docker-build-strict.sh` (semver 강제, latest 금지)
+      · `server/scripts/docker-deploy-strict.sh` (version_gt, 건강성 180초)
+      · `server/scripts/upload-gate-strict.sh` (폐쇄형 검증 게이트)
+      · `server/scripts/safe-deploy.sh` (docker cp + `node --check` + auto rollback)
+      · `server/docs/release-manifest/` (per-release `{TAG}.md` + `{TAG}.json`)
+  - PM 검증 루프: 배포 후 PM이 실기기에서 수동 테스트 → 결과 기록
+  - 현재 금지/대기: 신규 빌드·배포·가상프린터 구현 모두 PM 별도 지시 대기.
+    본 작업은 문서만 갱신.
 
 ---
 
@@ -537,7 +592,7 @@ _config.Save();
 - 기획서 작성 → PM 상의 → 기획서 확정 → 코드 작업
 - 하드코딩 금지
 - 작업 완료 시 work_log.md + git push
-- **윈도우 프로그램 빌드/배포 금지**: PM 별도 지시 있기 전까지 빌드 및 서버 배포 금지 (2026-04-03 PM 지시)
+- **윈도우 프로그램 빌드/배포 금지**: 2026-04-03 PM 지시 — git 트래킹 v3.0.1 코드 상태에서 신규 빌드/배포 모두 PM 별도 지시 대기. 운영(prod) 배포 버전은 git과 별도 트래킹이며 직접 패치/force push 금지.
 
 ---
 
@@ -561,3 +616,4 @@ _config.Save();
 | 2026-04-04 | v2.0.4 코드 검증 완료 (BUG-001 수정 / 4대 기능 코드 존재 확인) — `v2.0.4-final-verification.md` | 리더 |
 | 2026-04-04 | v2.0.4 빌드 시도 — macOS에 dotnet 미설치로 빌드 실패. Windows 호스트 또는 dotnet 설치 필요 | 리더 |
 | 2026-04-08 | 기획서를 v2.0.4 실제 코드 상태에 맞게 갱신 (BUG-001 ✅, 미해결 항목 잔류) | 리더 |
+| 2026-04-08 | v3.0.1 정합화 — 라벨 단일화, 4경계(클라이언트/가상프린터/서버계약/개발방법) 명시, git/prod 분리 트래킹 명시 | 에이전트 |

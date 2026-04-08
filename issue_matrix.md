@@ -334,13 +334,13 @@
 
 | # | 이슈 | 해결방안 | 파일:줄 | 상태 |
 |---|------|---------|---------|------|
-| C-1 | BUG-001 토큰 삭제 버그 | `_config.Token = ""` if 블록 삭제 | MainForm.cs:750-753 | [ ] |
-| C-2 | 로컬→서버 재전송 테스트 | BUG-001 수정 후 [재전송] 버튼 테스트 | MainForm.cs:1013-1060 | [ ] |
-| C-3 | JSON 파일 동시 쓰기 잠금 없음 | FileStream + FileShare.None 잠금 추가 | OrderStorageService.cs Save/UpdateStatus | [ ] |
-| C-4 | config.json 동시 쓰기 잠금 없음 | 동일 방식 | LoginConfig.cs Save | [ ] |
-| C-5 | v2.0.3 빌드 + 배포 | csproj/MainForm.cs 버전 변경 + dotnet publish | PM 빌드 지시 대기 | [ ] |
+| C-1 | BUG-001 토큰 삭제 버그 | `_config.Token = ""` if 블록 삭제 | Forms/MainForm.cs LoginButton_Click(L726) | [x] git 코드 반영 (v3.0.1) |
+| C-2 | 로컬→서버 재전송 동작 | BUG-004 수정으로 토큰 추출 정상화. 실동작 PM 미테스트 | Forms/MainForm.cs:1034 RetryUploadBtn_Click | [x] 코드 / [ ] PM 실테스트 |
+| C-3 | JSON 파일 동시 쓰기 잠금 없음 | FileStream + FileShare.None 잠금 추가 | Services/OrderStorageService.cs Save L52-76 / UpdateStatus L81-101 | [ ] |
+| C-4 | config.json 동시 쓰기 잠금 없음 | 동일 방식 | Models/LoginConfig.cs Save() L46- | [ ] |
+| C-5 | 빌드 + 배포 | csproj 버전 + dotnet publish + zigso.kr 업로드 | PM 빌드 지시 대기 | [ ] git=v3.0.1 / 운영=별도 트래킹 |
 
-**⚠ PM 지시: 윈도우 프로그램 빌드/배포 금지. PM 별도 지시 시 진행.**
+**⚠ PM 지시: git v3.0.1 코드 상태에서 신규 빌드/배포 금지. C-3/C-4(파일 잠금) + B-4/B-5(DPAPI)는 PM 지시 시 진행. 운영 직접 패치/force push 금지.**
 
 ---
 
@@ -627,7 +627,10 @@
 | 79 | 윈도우 프로그램과 웹 인증 완전 분리 — 같은 사용자가 두 번 로그인 | UX | 향후 SSO 또는 토큰 공유 검토. 당장은 분리 명시 | [x] dev_progress + server_progress에 분리 명시 |
 | 80 | 서버 코드 docker cp 임시 적용 — 영구 반영 안 됨 | 배포 | Docker 이미지 리빌드 또는 배포 프로세스 확립 | [x] 깃↔서버 8개 파일 MD5 100% 일치 |
 | 81 | 서버 수정 후 기존 기능 검증 안 함 — 89개 엔드포인트, 25개 페이지 | 안정성 | 주요 API curl 테스트 + PM 웹 페이지 접속 테스트 | [x] 10개 API + 4개 웹페이지 전부 정상 |
-| 82 | BUG-001 미수정 — 윈도우 서버 업로드 0건 | 데이터 | PM 빌드 지시 시 수정 + 배포 | [ ] |
+| 82  | B-4 config.json token 평문 저장 (Models/LoginConfig.cs:11) | 보안 | Windows DPAPI(`ProtectedData.Protect`, scope=CurrentUser) | [ ] |
+| 82a | B-5 config.json password 평문 저장 (Models/LoginConfig.cs:20) | 보안 | 동일 (DPAPI) | [ ] |
+| 82b | C-3 주문 JSON 동시 쓰기 잠금 없음 (Services/OrderStorageService.cs Save/UpdateStatus) | 데이터 | FileStream + FileShare.None | [ ] |
+| 82c | C-4 config.json 동시 쓰기 잠금 없음 (Models/LoginConfig.cs Save) | 데이터 | 동일 (FileShare.None) | [ ] |
 
 ### P1 — 미확인 사항 (25건)
 
