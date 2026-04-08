@@ -3,8 +3,8 @@
 ## 프로젝트 개요
 - **프로젝트명**: 배달 주문 수신기
 - **플랫폼**: Windows 전용 (데스크톱 앱)
-- **현재 버전**: v2.0.2
-- **상태**: v2.0.2 배포 완료, 기존 서버 업그레이드 진행 중
+- **현재 버전**: v2.0.4
+- **상태**: v2.0.4 코드 완성 + BUG-001 수정 완료 + 코드 검증 완료, 빌드/배포 PM 지시 대기 중
 
 ---
 
@@ -76,10 +76,11 @@
 - 윈도우: UploadService.cs, MainForm.cs, AuthService.cs, LoginConfig.cs 수정
 - FreshOps Agent: 영향 없음 (API 키 방식 유지)
 
-### 현재 상태 (v2.0.2)
-- 윈도우 프로그램: Bearer token 방식으로 변경 완료
-- 기존 서버(bbb-prod-api): Device API Key만 허용 → 업로드 실패
-- 기존 서버(bbb-prod-api): FK 문제 해결 후 업로드 정상 동작 예정
+### 현재 상태 (v2.0.4)
+- 윈도우 프로그램: Bearer token 방식으로 변경 완료 (v2.0.0)
+- 윈도우 프로그램: BUG-001 코드 수정 완료 (v2.0.4, MainForm.cs:749-759)
+- 기존 서버(bbb-prod-api): FK 문제 해결 완료
+- 빌드/배포: PM 지시 대기 (2026-04-03 PM 빌드 금지 지시)
 - 방향: 기존 서버 수정/업그레이드 확정
 
 ---
@@ -166,7 +167,7 @@ X 버튼 → 프로그램 종료
 ### 로그인 패널
 ```
 ┌─────────────────────────────────┐
-│      배달 주문 수신기 v2.0.2     │
+│      배달 주문 수신기 v2.0.4     │
 │                                 │
 │  이메일:    [________________]  │
 │  패스워드:  [________________]  │
@@ -353,9 +354,9 @@ PC 재부팅
 | 매장천사 프린터 등록 | ✅ 성공 | LKT-20, COM14 |
 | 매장천사 시험 인쇄 수신 | ✅ 성공 | |
 | 배달앱 주문 수신 | ✅ 성공 | v2.0.0에서 확인 (6번 이미지) |
-| 서버 업로드 | ❌ 실패 | 서버 FK 해결 완료, 그러나 윈도우 프로그램 토큰 버그로 업로드 0건. 주문은 로컬에만 쌓임 |
+| 서버 업로드 | 🔄 빌드 대기 | v2.0.4에서 BUG-001 코드 수정 완료. 빌드/배포 후 실업로드 검증 필요 |
 | 자동 로그인 | ✅ 성공 | v2.0.0에서 확인 |
-| 재부팅 자동 시작 | 🔄 테스트 필요 | |
+| 재부팅 자동 시작 | 🔄 테스트 필요 | 코드는 Program.cs:16-26 검증 완료, 실재부팅 테스트 미완 |
 
 ---
 
@@ -381,12 +382,12 @@ PC 재부팅
 - [x] 종료 시 버퍼 데이터 처리 완료 후 종료 (v2.0.1에서 구현)
 - [x] 로컬 JSON 파일 손상 방지 (v2.0.1에서 임시 파일 교체 구현)
 
-### 미해결 — 긴급 버그
+### 버그 진행 상태
 
 #### BUG-001: "자동 로그인" 미체크 시 토큰 삭제 버그
-- **심각도**: 긴급 — 서버 업로드 0건 원인
-- **파일**: Forms/MainForm.cs LoginButton_Click 메서드
-- **원인 코드**:
+- **심각도**: 긴급 — 서버 업로드 0건 원인이었음
+- **파일**: Forms/MainForm.cs LoginButton_Click 메서드 (현 코드 라인 749-759)
+- **원인 코드 (v2.0.3 이전, 제거됨)**:
   ```csharp
   if (!_autoLoginCheckBox.Checked)
   {
@@ -395,41 +396,54 @@ PC 재부팅
   _config.Save();
   ```
 - **증상**: 로그인 성공해도 토큰이 비어서 업로드 시 "로그인이 필요합니다" 에러
-- **영향**: v2.0.0부터 현재까지 서버 업로드 성공 0건. 모든 주문이 로컬에만 저장
+- **영향**: v2.0.0~v2.0.3 동안 서버 업로드 성공 0건. 모든 주문이 로컬에만 저장
 - **근거 없이 추가한 코드**: 기획서에 "자동 로그인 미체크 시 토큰 삭제" 항목 없음. 리더가 임의로 추가
-- **수정 방법**: "자동 로그인" 체크 해제 시 다음 앱 시작에 자동 로그인만 안 함. 현재 세션 토큰은 유지
-  ```csharp
-  // 수정 후
-  // _config.Token 삭제 코드 제거
-  // autoLogin 플래그만 저장 (다음 시작 시 참조)
-  ```
-- **상태**: [ ] 미수정 — 윈도우 프로그램 코드 수정 + 재빌드 + 재배포 필요
+- **수정 내용 (v2.0.4)**: 토큰 삭제 코드 제거. autoLogin 플래그만 저장. 현재 세션 토큰은 유지
+- **상태**: ✅ **코드 수정 완료 (v2.0.4)** — `MainForm.cs:749-759` 에 토큰 삭제 코드 없음
+- **남은 작업**: 빌드/배포 후 실업로드 동작 검증 (PM 빌드 지시 대기)
 
 #### BUG-002: 로컬에만 쌓인 주문 서버 미전송
 - **심각도**: 긴급
 - **원인**: BUG-001로 인해 모든 업로드 실패
 - **영향**: 수신된 모든 주문이 로컬 JSON 파일에만 존재, 서버 raw_receipts 0건
 - **수정 방법**: BUG-001 수정 후 "재전송" 버튼으로 실패 건 재업로드
-- **확인 필요**: 재전송 버튼이 실제 동작하는지 테스트 안 됨
-- **상태**: [ ] BUG-001 수정 후 진행
+- **상태**: 🔄 BUG-001 코드 수정 완료. 빌드/배포 + 재전송 버튼 실행 대기
+- **남은 작업**: v2.0.4 빌드 + 배포 + 재전송 버튼으로 누적분 일괄 재업로드
 
 #### BUG-003: 재전송 버튼 동작 미검증
 - **심각도**: 중간
-- **원인**: RetryUploadBtn_Click 구현됨, 실제 테스트 안 함
-- **확인 필요**: 실패 상태 주문을 실제로 서버에 재전송하는지
-- **상태**: [ ] 미검증
+- **원인**: `RetryUploadBtn_Click` 구현됨, 실제 테스트 안 함
+- **위치**: `MainForm.cs:1034-1093`
+- **확인 필요**: 실패 상태 주문을 실제로 서버에 재전송하는지 + 401 자동 재로그인 분기까지
+- **상태**: [ ] 코드 존재, 실테스트 미완 (v2.0.4 배포 후 PM 검증)
 
-### 미해결 — 기획서 기반 수정 필요
+### 미해결 — v2.0.4 기준 잔여 항목
 
-- [ ] 서버 FK 문제 해결 후 업로드 동작 테스트 (BUG-001 수정 후)
+#### P0 (가장 긴급)
+- [ ] **v2.0.4 빌드** — `dotnet publish -c Release -r win-x64 --self-contained`. 현재 macOS 환경에 dotnet 미설치 → Windows 빌드 호스트(Parallels) 또는 dotnet 설치 필요
+- [ ] **PM 빌드/배포 지시 대기** — 2026-04-03 PM 빌드 금지 지시. 지시 받기 전 빌드/배포 금지
+- [ ] **v2.0.4 서버 배포** — `zigso.kr releases/2.0.4/` + manifest.json + latest.json 갱신 (빌드 후)
+
+#### P1 (배포 후 검증)
+- [ ] 서버 FK 문제 해결 후 실업로드 동작 테스트 (BUG-001 코드 수정 → 빌드 → 검증)
 - [ ] epposon0@gmail.com 패스워드 변경 완료 — 윈도우 프로그램에서 Zigso2026!로 재로그인 필요
+- [ ] 로컬 누적 실패 건 일괄 재전송 (BUG-002 해결)
+- [ ] BUG-003 재전송 버튼 실동작 검증 (`MainForm.cs:1034-1093`)
 - [ ] 화면 레이아웃 최종 확인 (PM 테스트)
-- [ ] 날짜별 저장/중복 감지 동작 확인 (PM 테스트)
-- [ ] 자동 재로그인 동작 확인 (PM 테스트)
-- [ ] 재부팅 자동 시작 테스트 (PM 테스트)
-- [ ] **시간대 버그**: DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fffZ") — 로컬 시간(KST)인데 "Z"(UTC) 접미사 붙임. DateTimeOffset.UtcNow 또는 "Z" 제거 필요
-- [ ] **시간대 자동 변환**: 한국(KST) 기준 표시 + 향후 각 나라 시간대 자동 맞춤 (PM 요구사항)
+- [ ] 날짜별 저장/중복 감지 실동작 확인 (PM 테스트, 코드 검증은 완료)
+- [ ] 자동 재로그인 실동작 확인 (PM 테스트, 코드 검증은 완료)
+- [ ] 재부팅 자동 시작 실재부팅 테스트 (코드는 Program.cs:16-26 검증 완료)
 - [ ] 서버 수정 후 CORS/기존 엔드포인트/기존 페이지 정상 동작 확인 (PM 테스트 필요)
+
+#### P2 (시간대 관련)
+- [ ] **시간대 버그**: `MainForm.cs:884` `DateTime.UtcNow.ToString("o")` — 출력에 `Z` 접미사가 붙어 KST와 9시간 차이로 혼동. `DateTimeOffset.UtcNow` 또는 `"Z"` 제거 필요
+- [ ] **시간대 자동 변환**: 한국(KST) 기준 표시 + 향후 각 나라 시간대 자동 맞춤 (PM 요구사항)
+
+#### P3 (보안/품질)
+- [ ] **Password 평문 저장**: `LoginConfig.cs:20` Password를 `%APPDATA%/DeliveryOrderReceiver/config.json`에 평문으로 저장. Windows DPAPI 등 암호화 필요
+- [ ] **관리자 비밀번호 하드코딩**: 설정 모드 진입 비밀번호 `"0000"` 하드코딩, 변경 UI 없음
+- [ ] **MainForm.cs 1671줄 분리**: GUI + 모든 비즈니스 로직 통합 → 단일 책임 분리 필요 (테스트 가능성 향상)
+- [ ] 기획서에 없는 코드가 다른 곳에도 있는지 전수 확인
 
 ### 코드 작성 규칙 위반 기록
 
@@ -449,22 +463,22 @@ PC 재부팅
 | 4 | 디바이스 등록 UI | ✅ 제거 완료 | MainForm에 버튼 없음 (grep 결과 0건) |
 | 5 | 서버 API (디바이스등록/API Key) | 보류 | 서버에 그대로 유지, 우리 프로그램에서 안 씀 (PM 결정) |
 
-#### BUG-001 수정 계획 (근거: 기획서에 없는 코드를 임의 추가한 것이 원인)
+#### BUG-001 수정 진행 (v2.0.4 기준)
 | # | 작업 | 파일 | 상태 | 근거 |
 |---|------|------|------|------|
-| 1 | 토큰 삭제 코드 제거 | MainForm.cs LoginButton_Click | [ ] | `_config.Token = ""` 코드가 기획서에 없음 |
-| 2 | autoLogin 플래그만 저장하도록 수정 | MainForm.cs LoginButton_Click | [ ] | "자동 로그인"은 다음 시작에 자동 로그인 여부만 결정 |
-| 3 | saveLoginInfo 미체크 시 이메일/서버주소만 초기화 | MainForm.cs LoginButton_Click | [ ] | 기획서: "로그인 정보 저장" = 이메일/서버주소 저장 여부 |
-| 4 | 빌드 (dotnet publish) | DeliveryOrderReceiver.csproj | [ ] | v2.0.3으로 버전 업 |
-| 5 | 서버 배포 | zigso.kr releases/2.0.3/ | [ ] | manifest.json + latest.json 갱신 |
+| 1 | 토큰 삭제 코드 제거 | MainForm.cs LoginButton_Click | ✅ 완료 (v2.0.4) | `_config.Token = ""` 코드 제거됨 (라인 749-759) |
+| 2 | autoLogin 플래그만 저장하도록 수정 | MainForm.cs LoginButton_Click | ✅ 완료 (v2.0.4) | `_config.AutoLogin = _autoLoginCheckBox.Checked;` 만 저장 |
+| 3 | saveLoginInfo 미체크 시 이메일/서버주소/패스워드 초기화 | MainForm.cs LoginButton_Click | ✅ 완료 (v2.0.4) | 라인 752-757: Email/Password/ServerUrl 초기화 (기획서엔 이메일/서버주소만이었으나 Password도 함께 초기화하도록 확장) |
+| 4 | 빌드 (dotnet publish) | DeliveryOrderReceiver.csproj | [ ] | csproj `Version 2.0.4`로 변경됨, macOS dotnet 미설치로 빌드 미완. PM 빌드 지시 대기 |
+| 5 | 서버 배포 | zigso.kr releases/2.0.4/ | [ ] | manifest.json + latest.json 갱신 (빌드 후) |
 | 6 | PM 다운로드 + 재로그인 | 윈도우 프로그램 | [ ] | epposon0@gmail.com / Zigso2026! |
 | 7 | 업로드 동작 확인 | 서버 raw_receipts | [ ] | 주문 수신 시 서버에 저장 확인 |
 | 8 | 로컬 실패 건 재전송 | 윈도우 [재전송] 버튼 | [ ] | BUG-002 해결 |
 
-#### BUG-001 수정 상세 (코드 변경 내용)
+#### BUG-001 수정 상세 (v2.0.4 적용된 코드)
 
-현재 코드 (MainForm.cs LoginButton_Click):
 ```csharp
+// MainForm.cs LoginButton_Click (라인 747-759)
 // 로그인 정보 저장 처리
 _config = LoginConfig.Load();
 _config.SaveLoginInfo = _saveLoginInfoCheckBox.Checked;
@@ -473,32 +487,9 @@ _config.AutoLogin = _autoLoginCheckBox.Checked;
 if (!_saveLoginInfoCheckBox.Checked)
 {
     _config.Email = "";
+    _config.Password = "";
     _config.ServerUrl = "https://agent.zigso.kr";
 }
-
-if (!_autoLoginCheckBox.Checked)
-{
-    _config.Token = "";    // ← BUG: 현재 세션 토큰 삭제
-}
-
-_config.Save();
-```
-
-수정 후:
-```csharp
-// 로그인 정보 저장 처리
-_config = LoginConfig.Load();
-_config.SaveLoginInfo = _saveLoginInfoCheckBox.Checked;
-_config.AutoLogin = _autoLoginCheckBox.Checked;
-
-if (!_saveLoginInfoCheckBox.Checked)
-{
-    _config.Email = "";
-    _config.ServerUrl = "https://agent.zigso.kr";
-}
-
-// autoLogin은 다음 시작에 자동 로그인 여부만 결정
-// 현재 세션 토큰은 삭제하지 않음 (업로드에 필요)
 
 _config.Save();
 ```
@@ -507,13 +498,14 @@ _config.Save();
 - dev_progress.md 기획서 "☑ 자동 로그인": "저장된 토큰 유효 시" 자동 로그인
 - autoLogin=false면 다음 시작 시 TryAutoLogin()에서 토큰 체크 안 함 (이미 AuthService.AutoLogin()에서 config.AutoLogin 확인)
 - 현재 세션에서 토큰을 삭제할 이유 없음
+- v2.0.4 추가: saveLoginInfo 미체크 시 Password도 함께 초기화 (자동 재로그인 차단)
 
 #### 솔직히 추가로 확인 필요한 것
 | # | 항목 | 상태 |
 |---|------|------|
-| 1 | saveLoginInfo 미체크 시 Password도 초기화하는지 | 확인 필요 |
-| 2 | 로그아웃 시 토큰/패스워드 초기화 정상 동작하는지 | 확인 필요 |
-| 3 | 기획서에 없는 코드가 다른 곳에도 있는지 | 전수 확인 필요 |
+| 1 | saveLoginInfo 미체크 시 Password도 초기화하는지 | ✅ 확인 완료 (v2.0.4 MainForm.cs:755에서 Password 초기화) |
+| 2 | 로그아웃 시 토큰/패스워드 초기화 정상 동작하는지 | ✅ 확인 완료 (MainForm.cs:1456-1457) |
+| 3 | 기획서에 없는 코드가 다른 곳에도 있는지 | 전수 확인 필요 (미완) |
 
 ---
 
@@ -565,3 +557,7 @@ _config.Save();
 | 2026-04-02 | 서버 전수 분석, 기획서 갱신, 깃 구조 변경 (claude-1/server/ 분리) | 리더 |
 | 2026-04-03 | [긴급] BUG-001~003 기록. 기획서 없이 추가한 코드로 서버 업로드 0건 문제 | 리더 |
 | 2026-04-03 | 윈도우 프로그램 정리 체크리스트 + BUG-001 수정 계획 상세 작성 | 리더 |
+| 2026-04-04 | v2.0.4 BUG-001 코드 수정 (`_config.Token = ""` 제거) + saveLoginInfo 미체크 시 Password 초기화 추가 | 리더 |
+| 2026-04-04 | v2.0.4 코드 검증 완료 (BUG-001 수정 / 4대 기능 코드 존재 확인) — `v2.0.4-final-verification.md` | 리더 |
+| 2026-04-04 | v2.0.4 빌드 시도 — macOS에 dotnet 미설치로 빌드 실패. Windows 호스트 또는 dotnet 설치 필요 | 리더 |
+| 2026-04-08 | 기획서를 v2.0.4 실제 코드 상태에 맞게 갱신 (BUG-001 ✅, 미해결 항목 잔류) | 리더 |
