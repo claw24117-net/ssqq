@@ -1,0 +1,17 @@
+# 빌드 산출물
+bin/
+obj/
+*.user
+*.suo
+.vs/
+
+# Rider/VS
+.idea/
+*.DotSettings.user
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db

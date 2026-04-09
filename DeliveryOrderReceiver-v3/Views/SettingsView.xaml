@@ -1,0 +1,80 @@
+<UserControl x:Class="DeliveryOrderReceiver.Views.SettingsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Button Grid.Column="0" Content="← 돌아가기" Click="BackButton_Click"/>
+            <TextBlock Grid.Column="1" Text="설정 (관리자 모드)"
+                       FontWeight="Bold" FontSize="16"
+                       VerticalAlignment="Center" HorizontalAlignment="Right"
+                       Foreground="{StaticResource PrimaryBrush}"/>
+        </Grid>
+
+        <ScrollViewer Grid.Row="1" Margin="0,12,0,12" VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+                <!-- COM 포트 관리 -->
+                <Border BorderBrush="#DDDDDD" BorderThickness="1" Padding="12" Margin="0,0,0,12">
+                    <StackPanel>
+                        <TextBlock Text="COM 포트 관리" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                        <TextBlock x:Name="CurrentPairText" Foreground="{StaticResource MutedBrush}" Margin="0,0,0,8"/>
+
+                        <TextBlock Text="시스템 점유 포트:" Margin="0,4,0,2"/>
+                        <TextBlock x:Name="OccupiedPortsText" TextWrapping="Wrap"
+                                   Foreground="{StaticResource MutedBrush}" Margin="0,0,0,8"/>
+
+                        <StackPanel Orientation="Horizontal" Margin="0,4,0,8">
+                            <TextBlock Text="포트 A:" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                            <TextBox x:Name="PortABox" Width="80" Margin="0,0,12,0"/>
+                            <TextBlock Text="포트 B:" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                            <TextBox x:Name="PortBBox" Width="80" Margin="0,0,12,0"/>
+                            <Button Content="포트 생성" Click="CreatePortButton_Click"/>
+                            <Button Content="포트 삭제" Click="DeletePortButton_Click"/>
+                            <Button Content="포트 복원" Click="RestorePortButton_Click"/>
+                        </StackPanel>
+
+                        <TextBlock Text="⚠ 영업 중 포트 변경 금지. 매장천사에 영향을 줄 수 있습니다."
+                                   Foreground="{StaticResource DangerBrush}" Margin="0,4,0,0"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- 매장천사 등록 안내 -->
+                <Border BorderBrush="#DDDDDD" BorderThickness="1" Padding="12" Margin="0,0,0,12">
+                    <StackPanel>
+                        <TextBlock Text="매장천사 등록 안내" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                        <TextBlock TextWrapping="Wrap" Foreground="{StaticResource MutedBrush}">
+                            1. 매장천사 → 주방프린터 → 추가<LineBreak/>
+                            2. 프린터 종류: LKT-20<LineBreak/>
+                            3. 포트: 위에서 생성한 포트A 입력<LineBreak/>
+                            4. 통신 속도: 메인 화면의 baudrate와 동일
+                        </TextBlock>
+                    </StackPanel>
+                </Border>
+
+                <!-- 관리자 비밀번호 변경 -->
+                <Border BorderBrush="#DDDDDD" BorderThickness="1" Padding="12" Margin="0,0,0,12">
+                    <StackPanel>
+                        <TextBlock Text="관리자 비밀번호 변경" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                        <Button Content="비밀번호 변경..." HorizontalAlignment="Left"
+                                Click="ChangeAdminPwd_Click"/>
+                    </StackPanel>
+                </Border>
+
+                <TextBlock x:Name="StatusText" Foreground="{StaticResource MutedBrush}" Margin="0,8,0,0"/>
+            </StackPanel>
+        </ScrollViewer>
+
+        <Button Grid.Row="2" Content="로그아웃" HorizontalAlignment="Right"
+                Background="{StaticResource DangerBrush}" Foreground="White"
+                Click="LogoutButton_Click"/>
+    </Grid>
+</UserControl>
