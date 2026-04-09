@@ -3,8 +3,9 @@
 ## 프로젝트 개요
 - **프로젝트명**: 배달 주문 수신기
 - **플랫폼**: Windows 전용 (데스크톱 앱)
-- **현재 버전**: v3.0.1 (git 트래킹 라벨; csproj `Version`은 2.0.4 유지, 운영 배포 버전과 별도)
-- **상태**: v3.0.1 git 코드 완성 (BUG-001/004, W-TIME, W-RETRY 수정 반영). 운영 배포 상태는 git과 분리 트래킹. 잔여 미테스트(P2) + 보안(B-4/B-5) + 동시쓰기(C-3/C-4) PM 지시 대기
+- **현재 버전**: v3.0.1 (git 트래킹 라벨; 별도 프로젝트 `ssqq/DeliveryOrderReceiver-v3/`, 기존 v2.0.4 소스 그대로 보존)
+- **상태**: v3.0.1 git 코드 완성 (BUG-001/004, W-TIME/W-RETRY, B-4/B-5, C-3/C-4 처음부터 fix). 운영 배포 상태는 git과 분리 트래킹. v2.0.4 잔여 미테스트(P2) + 보안(B-4/B-5) + 동시쓰기(C-3/C-4) PM 지시 대기
+- **운영 배포**: v3.0.1 r2 (2026-04-08, channel=beta, active=false 격리). `latest.json`은 v2.0.4 그대로. DB에서 실데이터 검증됨. drift 상세: `ssqq/ops_drift_log.md`. 빌드 이력: `ssqq/DeliveryOrderReceiver-v3/CHANGELOG.md`.
 
 ---
 

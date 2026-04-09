@@ -1,11 +1,35 @@
 # 작업 로그 (DeliveryOrderReceiver)
 
-> 본 파일은 git 트래킹 기준 작업 로그. 운영(prod) 직접 패치 이력은 포함하지 않음.
-> 운영 배포 상태는 git과 별도 트래킹.
+> 본 파일은 git 트래킹 기준 작업 로그.
+> **운영(prod) 직접 패치는 `ssqq/ops_drift_log.md`에 동시 기록**.
+> 매 entry 형식은 `ssqq/.session-format.md` 템플릿을 따름.
+
+## 세션 시작 체크리스트
+
+1. 본 파일 최근 entry 읽기 (마지막 세션이 뭐 했는지)
+2. `ssqq/ops_drift_log.md` 읽기 (현재 drift 상태)
+3. `git status` / `git log --oneline -5` (브랜치 + ahead/behind 확인)
+4. 작업 범위가 `ssqq/` 경계 내인지 확인
+5. `.session-format.md` 템플릿을 염두에 두고 entry 초안 잡기
+
+## 세션 종료 체크리스트
+
+1. 이 파일에 오늘 세션 entry 추가했나? (템플릿 준수)
+2. drift 발생했으면 `ops_drift_log.md`에도 entry 추가했나?
+3. `git status` clean? 커밋 완료? (Conventional Commits: `feat/fix/docs/refactor/build`)
+4. `git push` 필요 여부 판단 (허락된 경우만 실행)
+5. entry 끝에 "다음 세션용 현재 상태" 한 줄 적었나?
+
+## 경계 규칙 (절대)
+
+- `ssqq/` 폴더 밖 변경 금지 (v2 `DeliveryOrderReceiver/`, `server/`, `claude-1/` 루트)
+- `main` 브랜치 직접 커밋 금지
+- `git push --force` 금지 (fast-forward만)
+- 운영 직접 패치는 PM 명시 허락 + `ops_drift_log.md` 기록 의무
 
 ---
 
-### 2026-04-08
+### 2026-04-08 (오전, v3.0.1 정합화)
 
 1. v3.0.1 정합화 분석:
    - 코드 현 상태 검증 (Forms/MainForm.cs 1671줄, Services/AuthService.cs, Models/LoginConfig.cs, Services/OrderStorageService.cs)
@@ -30,3 +54,89 @@
    - DeliveryOrderReceiver/ 코드: 0줄 변경
    - server/ 전체 (가상프린터 / 서버 계약 / 빌드 스크립트 / release-manifest): 0줄 변경
    - 가상프린터 단일 진실 출처 windows-agent-unified-plan-v1.md: 0줄 변경 (인용만)
+
+**검증**: `git diff --stat` 결과 `dev_progress.md`, `issue_matrix.md`, `work_log.md` 3파일만
+**커밋**: `1e0fd3e docs: v3.0.1 정합화 — 라벨 분리 트래킹 + 4경계 명시 (코드 0 변경)`
+
+---
+
+### 2026-04-08 (오후, v3.0.1 r2 운영 배포 세션)
+
+**범위**: mixed (git + ops-drift)
+**브랜치**: `work/v2.0.4-reconciliation`
+**drift 발생**: yes → `ops_drift_log.md` 섹션 2 참조
+
+**시작 전 상태**:
+- git: `work/v2.0.4-reconciliation`, 최신 `1e0fd3e` (오전 정합화), origin 대비 +1 ahead
+- ops: `/app/storage/windows-agent/releases/` = `{2.0.4/, latest.json}`, `latest.json`=v2.0.4
+- `bbb-prod-web-1` page.js = 원본 (`handleDownloadV301` 없음)
+- `ssqq/DeliveryOrderReceiver-v3/` 폴더 없음
+
+**작업 내용**:
+1. `ssqq/DeliveryOrderReceiver-v3/` WPF 프로젝트 27파일 작성 (.NET 8 + WPF, win-x64 self-contained)
+   - `Models/`: LoginConfig(DPAPI), OrderRecord
+   - `Helpers/`: DpapiHelper, FileLockHelper, EscPosParser
+   - `Services/`: Auth, Upload, OrderStorage, Port, SerialReceiver, AutoStart, AdminAuth
+   - `Views/`: LoginView, MainView, SettingsView, AdminPasswordDialog
+   - `scripts/`: Download-DOR-v3.0.1.ps1, download-v3.0.1.sh, README.md
+2. Parallels Win11 VM에 .NET 8 SDK 설치 (`C:\dotnet-sdk`, win-arm64, cross-build win-x64)
+3. **r1 빌드**: `dotnet publish -c Release -r win-x64 --self-contained true` → 154MB (native DLL 분리)
+4. csproj 에 `IncludeNativeLibrariesForSelfExtract=true` + `EnableCompressionInSingleFile=true` → 68.5MB single-file exe
+5. **r1 서버 배포**:
+   - SCP → `/tmp/dor-v3.0.1-stage/` → `docker cp` → `bbb-prod-api-1:/app/storage/windows-agent/releases/3.0.1/`
+   - `manifest.json` 신설 (channel=beta, active=false)
+   - `latest.json` **안 건드림** (자동 업데이트는 v2.0.4 그대로)
+6. **페이지 직접 패치** (`bbb-prod-web-1:/app/apps/web/app/management/devices/download/page.js`):
+   - 원본 백업 → 영속 볼륨 (`page-backups/2026-04-09/page.js.original`)
+   - v3.0.1 카드 `<article>` + `handleDownloadV301()` 함수 추가 (+48줄 / -0줄)
+   - r1 패치본 백업 → 영속 볼륨 (`page.js.v3.0.1-patched`, 20886 bytes)
+   - 컨테이너 안 `next build` → `docker restart bbb-prod-web-1` (1차)
+7. **매장 테스트 → HTTP 400 발견**
+8. 서버 `agent-routes.js` 조사 → `requiredFields` 필터가 `platformId/platformStoreId`를 빈 문자열 아닌 string으로 요구 확인
+9. **r2 fix**: `Services/UploadService.cs` — `(string?)null` → `"unknown"` (v2.0.4와 동일 우회)
+10. **r2 재빌드**: clean + publish → 68.5MB exe (sha256 `e95d58351e0e...`)
+11. **r2 서버 재배포**: 컨테이너 안 `releases/3.0.1/` exe 덮어쓰기 + manifest sha256 갱신
+12. **페이지 r2 갱신**: 컨테이너 안 `sed` 로 page.js 의 sha256 + 게시일 r2로 교체 → r2 백업(`page.js.v3.0.1-patched-r2`, 20891 bytes) → `next build` → `docker restart` (2차)
+13. **DB 검증**: `docker exec bbb-prod-postgres-1 psql` → `upload_jobs` 5건 `completed`, `raw_receipts` 5건 insert
+
+**발견된 문제/이슈**:
+- [해결] r1 `UploadService.cs` `platformId/platformStoreId = null` → HTTP 400. r2 에서 `"unknown"` 하드코딩 fix (`ssqq/DeliveryOrderReceiver-v3/Services/UploadService.cs:78-79`)
+- [해결] 첫 빌드에서 native DLL 5개가 exe 옆에 분리됨 → `IncludeNativeLibrariesForSelfExtract` 옵션으로 single-file 화
+- [잔존] `bbb-prod-web-1:page.js` drift +1 — 컨테이너 재생성 시 증발. 영속 볼륨 백업 3개 있음. `ops_drift_log.md` 섹션 2.6/2.7 복구 절차 참조
+- [잔존] `Views/MainView.xaml.cs(23,32)` `MainView.LogoutRequested` 미사용 경고 `CS0067` — 기능 영향 없음, 나중에 로그아웃 버튼 추가 시 살아남
+- [잔존] v3.0.1 은 v2.0.4 평문 `config.json` → DPAPI 자동 마이그레이션 미구현. 같은 폴더에 덮어쓰면 자동 재로그인 실패 (별도 폴더 설치 권장)
+- [잔존] `latest.json` 은 의도적으로 v2.0.4 유지. v3.0.1 promotion 은 PM 별도 지시 시
+
+**끝난 후 상태**:
+- git: 오전 커밋 `1e0fd3e` 그대로 (이번 세션 후 추가 커밋은 P6 단계에서 들어감)
+- ops:
+  - `/app/storage/windows-agent/releases/3.0.1/` exe + manifest 신설 (r2, sha256 `e95d58351e0e...`)
+  - `/app/storage/windows-agent/releases/latest.json` 그대로 v2.0.4
+  - `/app/storage/windows-agent/page-backups/2026-04-09/` 3개 백업 파일
+  - `bbb-prod-web-1:page.js` v3.0.1 카드 포함 (drift)
+  - `bbb-prod-api-1` / `bbb-prod-worker-1` / `bbb-prod-postgres-1` / `bbb-prod-redis-1` 재시작 0건
+  - `bbb-prod-web-1` `docker restart` 2회
+- 매장: v3.0.1 r2가 실 운영, 영수증 서버 반영 중
+
+**변경 파일** (git 기준, P6 커밋 전):
+- 신규 untracked: `ssqq/DeliveryOrderReceiver-v3/**/*` (~30 파일, bin/obj 제외)
+- 신규 untracked: `ssqq/ops_drift_log.md`
+- 신규 untracked: `ssqq/.session-format.md`
+- 수정: `ssqq/work_log.md` (이 entry 추가 + 상단 HEADER)
+- 수정: `ssqq/dev_progress.md` (상태 라인 1줄 추가)
+
+**검증**:
+- SHA256 3곳 일치: 로컬 빌드 / 호스트 `/tmp/dor-v3.0.1-stage/` / 컨테이너 `releases/3.0.1/` → `e95d58351e0e31ebba6390f0ff47caf7094e274d1949c245daeedc6518843895`
+- DB 쿼리: `SELECT * FROM upload_jobs WHERE upload_type='receipt_raw' ORDER BY received_at DESC LIMIT 5` → 5/5 `completed`
+- `SELECT platform_id, platform_store_id FROM raw_receipts ORDER BY created_at DESC LIMIT 5` → 모두 `unknown`/`unknown`, `site_id=site_001`, `port=COM15`
+- 운영 경계 0 변경 확인: `latest.json` = `{"version":"2.0.4",...}`, `releases/2.0.4/` sha256 `24d8109c...1dd3fd`, bbb-prod-api-1 Up 4 days healthy
+- 신 `meybOCiMU5SGkXAaBPRrt` BUILD_ID, 새 chunk `page-64acfe5f7d0af961.js` 에 v3.0.1 / `e95d58351e0e` / `r2` 키워드 확인
+
+**커밋**: (P6 단계에서 아래 4개로 분할 예정)
+- `feat(v3.0.1): import WPF client source as deployed to prod (r2)`
+- `docs(ops): add ops_drift_log.md — 2026-04-08 page.js direct patch (drift +1)`
+- `docs(v3.0.1): record 2026-04-08 afternoon deploy session + CHANGELOG`
+- `docs: add session log format + work_log header template`
+
+**다음 세션용 현재 상태 (한 줄)**:
+v3.0.1 r2 운영 beta 격리 배포 중, 매장 동작 확인, page.js drift +1 기록됨, git import 대기 (P6 커밋+push로 완료 예정).
