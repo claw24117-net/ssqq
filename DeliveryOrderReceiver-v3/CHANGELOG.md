@@ -5,7 +5,57 @@ v3.0.1은 v2.0.4의 알려진 버그들을 **처음부터 fix한 상태**로 재
 
 ---
 
-## v3.0.1 r2 — 2026-04-08 (현재 운영 배포)
+## v3.0.1 r3 — 2026-04-10 (현재 운영 배포)
+
+### 빌드 메타
+
+| 항목 | 값 |
+|---|---|
+| sha256 | `9471b1ec3ad44746985d2b620b4034ce176ea4f8d188c60895715bf5946473ab` |
+| size | 71,808,979 bytes (r2 대비 +252 bytes) |
+| 빌드 시각 | 2026-04-10 (UTC, 매장 검증 후 정확한 timestamp 확정) |
+| 빌드 환경 | Parallels Win11 VM, .NET 8 SDK 8.0.419 (win-arm64 host, win-x64 target) |
+| 빌드 명령 | `dotnet publish -c Release -r win-x64 --self-contained true` |
+
+### 변경 내역 (r2 대비)
+
+**Bug 1 fix — 관리자 비밀번호 매번 setup mode**
+- `Services/AdminAuthService.cs`: `LoginConfig` 생성자 주입. 자체 `Load()` 2건 제거 (`PromptForAccess`, `ChangePassword`).
+- `MainWindow.xaml.cs`: `_adminAuth = new AdminAuthService(_config)` 로 변경 (1줄).
+- root cause: 별개 인스턴스 두 개가 같은 디스크 파일 두고 race. stale 인스턴스가 다른 인스턴스의 변경을 덮어씀.
+- 결과: `_config` 가 MainWindow 와 같은 인스턴스 → setter 로 `AdminPasswordEncrypted` 갱신 → 같은 인스턴스가 메모리에 계속 살아있음 → 다른 곳에서 `_config.Save()` 호출해도 race 0.
+
+**Bug 2 fix — DataGrid 행 높이 자동 확장**
+- `Views/MainView.xaml`: DataGrid에 `RowHeight="28"` 추가.
+- `내용` 컬럼을 `DataGridTextColumn` → `DataGridTemplateColumn` 으로 교체.
+- TextBlock 에 `TextWrapping="NoWrap"` + `TextTrimming="CharacterEllipsis"` + `ToolTip="{Binding Content}"`.
+- root cause: `RowHeight` 미설정 + `OrderRecord.Content` (멀티라인 ESC/POS) 가 행을 자동 확장.
+- 결과: 모든 행이 28px 고정. 영수증 첫 줄만 노출, 잘리는 부분은 ellipsis. 마우스 호버 시 ToolTip 으로 전체 텍스트.
+
+### 운영 배포 위치
+
+| 경로 | 내용 |
+|---|---|
+| `bbb-prod-api-1:/app/storage/windows-agent/releases/3.0.1/DeliveryOrderReceiver-v3.0.1.exe` | r3 본 exe (r2 덮어씀) |
+| `bbb-prod-api-1:/app/storage/windows-agent/releases/3.0.1/manifest.json` | `channel:beta`, `active:false`, sha256/size r3 로 갱신 |
+| `bbb-prod-api-1:/app/storage/windows-agent/page-backups/2026-04-10/DeliveryOrderReceiver-v3.0.1-r2.exe.backup` | r2 백업 (롤백용) |
+| `bbb-prod-api-1:/app/storage/windows-agent/page-backups/2026-04-10/manifest-r2.json.backup` | r2 manifest 백업 |
+
+### 격리 정책 (r2 와 동일)
+
+- `latest.json` 안 건드림 → 매장 PC 자동 업데이트는 **여전히 v2.0.4** 그대로
+- `channel=beta, active=false` → `/api/windows-agent/latest` 엔드포인트에 안 노출
+- `/management/devices/download` 페이지의 v3.0.1 카드는 sha256 리터럴만 r3 로 갱신 (기존 drift 의 in-place 갱신, 신규 drift 0)
+
+### 알려진 잔존 이슈
+
+- **Bug 3 [잔존]**: 서버 `/orders/hub` 페이지 `page.js:265` 가 `formatTimestamp(r.created_at)` 표시. 클라이언트는 정확히 `capturedAt` 송신 중. server-side 1줄 수정 (`r.created_at` → `r.captured_at`)으로 해결되지만 본 r3 에서는 hub page 직접 패치 회피 (drift +1 안 만들기). API 는 이미 `captured_at` 반환 중 (`postgres-store.js:9336`). 처리 시기: 서버 이미지 정식 리빌드 시. 우회: 운영자가 행 클릭 → 상세 패널의 `Captured At` 필드 확인 가능.
+- `MainView.LogoutRequested` 이벤트 미사용 경고 `CS0067` (기능 영향 없음)
+- v2.0.4 평문 `config.json` → v3 DPAPI 자동 마이그레이션 미구현 (별도 폴더 설치만 가능)
+
+---
+
+## v3.0.1 r2 — 2026-04-08 (r3 으로 대체됨)
 
 ### 빌드 메타
 
