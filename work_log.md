@@ -190,3 +190,92 @@ v3.0.1 r2 운영 beta 격리 배포 중, 매장 동작 확인, page.js drift +1 
 
 **다음 세션용 현재 상태 (한 줄)**:
 v3.0.1 r2 운영 1일차, 매장 3개 플랫폼(배민/쿠팡이츠/요기요) 58/58 무결점. B-4/B-5/C-3/C-4 처음부터 박은 fix 실전 검증 OK. 향후 개선 후보: platformId 자동 추출, 설정 창 "기존 포트 등록" 버튼.
+
+---
+
+### 2026-04-10 (v3.0.1 r3 — 클라이언트 2-bug fix)
+
+**범위**: mixed (git + ops 배포, drift 신규 0)
+**브랜치**: `work/v2.0.4-reconciliation`
+**drift 발생**: no (download page sha256 갱신은 §2 in-place, hub page 패치 안 함)
+
+**시작 전 상태**:
+- git: `e1442f4` (r2 1일차 검증 entry), origin 동기화
+- ops: `releases/3.0.1/` = r2 (sha256 `e95d58351e0e...`), latest.json=v2.0.4 (그대로), bbb-prod-web-1 page.js download 카드 = r2 drift
+- 사용자 매장 발견 3가지 이슈:
+  1. 관리자 비밀번호 매번 setup mode 진입 (의도는 1회만)
+  2. 주문 내역 한 행이 영수증 줄 수만큼 세로로 키짐
+  3. 서버 웹 페이지에서 영수증 시각이 재전송 시각으로 표시
+
+**작업 내용**:
+1. 진단 — Phase 1 Explore agent + 직접 read:
+   - Bug 1: `AdminAuthService.PromptForAccess()` 가 매번 `LoginConfig.Load()` 로 별개 인스턴스 B 만듦. MainWindow 의 stale 인스턴스 A 가 [수신 시작] 시 `_config.Save()` 호출하면서 빈 `AdminPasswordEncrypted` 로 디스크 덮어씀. → race
+   - Bug 2: `MainView.xaml` DataGrid 에 `RowHeight` 미설정. `Content` 컬럼이 multi-line ESC/POS 텍스트를 그대로 렌더링.
+   - Bug 3: 클라이언트 코드는 정상. `capturedAt = order.ReceivedAt` 정확히 송신. DB 638/638 `captured_at NOT NULL`. server `/orders/hub/page.js:265` 가 `formatTimestamp(r.created_at)` 표시.
+2. 사용자 결정: Bug 1, 2 만 r3 로 fix. Bug 3 은 hub page 직접 패치 회피 (drift +1 안 만들기) → [잔존].
+3. 클라이언트 코드 수정 (3 파일):
+   - `Services/AdminAuthService.cs`: `LoginConfig` 생성자 주입, 자체 `Load()` 2건 제거
+   - `MainWindow.xaml.cs`: `_adminAuth = new AdminAuthService(_config)` (1줄)
+   - `Views/MainView.xaml`: `RowHeight="28"` + 내용 컬럼 `DataGridTemplateColumn` (TextBlock NoWrap+Ellipsis+ToolTip)
+4. `CHANGELOG.md`: r3 섹션 신설 (sha256, 변경 내역, 잔존 이슈)
+5. Parallels 빌드 r3:
+   - clean → `dotnet publish -c Release -r win-x64 --self-contained true`
+   - sha256: `9471b1ec3ad44746985d2b620b4034ce176ea4f8d188c60895715bf5946473ab`
+   - size: 71,808,979 bytes (r2 +252)
+6. 운영 r3 배포:
+   - r2 백업 → 영속 볼륨 (`page-backups/2026-04-10/DeliveryOrderReceiver-v3.0.1-r2.exe.backup` + `manifest-r2.json.backup`)
+   - SCP → host staging → docker cp → 권한
+   - 3곳 sha256 일치 검증 (로컬/호스트/컨테이너)
+   - manifest.json 갱신 (channel=beta, active=false 유지, sha256/size/notes r3)
+   - latest.json 0 변경 재확인
+7. download page sha256 리터럴 갱신 (기존 §2 drift in-place):
+   - sed 2회 (sha256, 게시일)
+   - r3 패치본 영속 백업 (`devices-download-page.js.v3.0.1-patched-r3`)
+   - Next.js 재빌드 → 새 BUILD_ID `2JAKlHGTMA5dWgPgVN-an`
+   - `docker restart bbb-prod-web-1` → 22초 healthy
+8. ops_drift_log.md §3 추가 (r3 배포, r2 백업, hub page 미진행)
+9. 본 work_log entry 작성
+
+**발견된 문제/이슈**:
+- [해결] Bug 1 — AdminAuthService DI fix (stale instance race)
+- [해결] Bug 2 — DataGrid RowHeight 28 + DataGridTemplateColumn
+- [잔존] Bug 3 — server `/orders/hub/page.js:265` 1줄 fix 가능하지만 사용자 결정으로 r3 에서 회피. 서버 이미지 정식 리빌드 시 처리. 우회: 행 클릭 후 상세 패널 `Captured At` 확인.
+- [잔존] `MainView.LogoutRequested` 미사용 경고 CS0067 (기능 영향 없음)
+- [잔존] v2.0.4 평문 config → v3 DPAPI 자동 마이그레이션 미구현
+
+**끝난 후 상태**:
+- git: 본 entry 추가 후 4 커밋 추가 예정 (R8)
+- ops:
+  - `releases/3.0.1/exe` = r3 (sha256 `9471b1ec3ad4...`)
+  - `releases/3.0.1/manifest.json` = r3 메타
+  - `latest.json` = v2.0.4 그대로
+  - `bbb-prod-web-1:page.js` = r3 sha256 표시 (drift 신규 0, 기존 §2 in-place 갱신)
+  - 영속 볼륨에 r2 백업 + r3 패치본 백업 보존
+  - 컨테이너 재시작: bbb-prod-web-1 1회만 (다른 모두 재시작 0)
+- 매장: r3 다운로드 + 검증은 사용자 단계 (R9 후)
+
+**변경 파일** (git 기준):
+- `ssqq/DeliveryOrderReceiver-v3/Services/AdminAuthService.cs` (수정)
+- `ssqq/DeliveryOrderReceiver-v3/MainWindow.xaml.cs` (수정)
+- `ssqq/DeliveryOrderReceiver-v3/Views/MainView.xaml` (수정)
+- `ssqq/DeliveryOrderReceiver-v3/CHANGELOG.md` (수정)
+- `ssqq/ops_drift_log.md` (수정 — §3 추가)
+- `ssqq/work_log.md` (수정 — 본 entry)
+
+**검증**:
+- sha256 3곳 일치 검증 (로컬 빌드 / 호스트 staging / 컨테이너 release): `9471b1ec3ad44746985d2b620b4034ce176ea4f8d188c60895715bf5946473ab`
+- `latest.json` `{"version":"2.0.4",...}` 그대로
+- v2.0.4 sha256 `24d8109c...1dd3fd` 그대로
+- 컨테이너 헬스: bbb-prod-web-1 22초 healthy (재시작), 다른 모두 4-11일 healthy 그대로
+- Next.js 새 BUILD_ID: `2JAKlHGTMA5dWgPgVN-an`
+- download page 안에 r3 sha256 (`9471b1ec`) + 게시일 r3 표기 확인 (line 532, 535)
+- 매장 검증 (R9 후 사용자 단계): 관리자 비밀번호 영속화, DataGrid 행 28px
+
+**커밋**: (R8 단계에서 4개로 분할 예정)
+- `fix(v3.0.1): inject LoginConfig into AdminAuthService (bug 1)`
+- `fix(v3.0.1): DataGrid RowHeight + single-line content cell (bug 2)`
+- `docs(v3.0.1): CHANGELOG r3 — bug 1+2 fix, sha256, bug 3 deferred`
+- `docs: r3 deploy session — ops_drift_log §3 + work_log entry`
+
+**다음 세션용 현재 상태 (한 줄)**:
+v3.0.1 r3 운영 배포 완료, sha256 `9471b1ec3ad4...`. Bug 1, 2 fix. Bug 3 (hub page) 잔존. drift 신규 0. 매장 r3 다운로드 + 영수증 검증 대기.

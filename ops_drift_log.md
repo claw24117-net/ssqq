@@ -118,6 +118,102 @@ docker restart bbb-prod-web-1
 
 ---
 
+---
+
+## 3. 2026-04-10 — v3.0.1 r3 배포 (drift 신규 0)
+
+### 3-1. 변경 요약
+
+| 항목 | 값 |
+|---|---|
+| 세션 | v3.0.1 r3 (admin password DI fix + DataGrid row height) |
+| ssqq 경계 | 안 (클라이언트 코드 + docs 만) |
+| 신규 drift | **0** (download page sha256 리터럴은 기존 §2 drift 의 in-place 갱신) |
+| 누적 drift | 15건 (legacy 14 + §2 download page 1, 변동 없음) |
+
+### 3-2. r2 → r3 운영 배포 산출물
+
+`/app/storage/windows-agent/releases/3.0.1/DeliveryOrderReceiver-v3.0.1.exe` 덮어쓰기
+
+| 항목 | 값 |
+|---|---|
+| r2 sha256 (이전) | `e95d58351e0e31ebba6390f0ff47caf7094e274d1949c245daeedc6518843895` |
+| **r3 sha256 (신규)** | `9471b1ec3ad44746985d2b620b4034ce176ea4f8d188c60895715bf5946473ab` |
+| r3 size | 71,808,979 bytes (r2: 71,808,727 → +252) |
+| r3 publishedAt | `2026-04-09T17:42:37Z` |
+| `manifest.json` | r3 sha256/size/notes 갱신, `channel:"beta"`, `active:false` 유지 |
+| `latest.json` | **미변경** (v2.0.4 stable 그대로) |
+
+### 3-3. r2 백업 (롤백 가능)
+
+영속 볼륨 `bbb-prod-api-1:/app/storage/windows-agent/page-backups/2026-04-10/`
+
+| 파일 | 크기 | 내용 |
+|---|---|---|
+| `DeliveryOrderReceiver-v3.0.1-r2.exe.backup` | 71,808,727 bytes | r2 exe 사본 (sha256 `e95d58351e0e...`) |
+| `manifest-r2.json.backup` | 371 bytes | r2 manifest 사본 |
+| `devices-download-page.js.v3.0.1-patched-r3` | 20,891 bytes | download page r3 패치본 |
+
+### 3-4. download page sha256 리터럴 갱신 (기존 drift §2 in-place)
+
+| 항목 | 값 |
+|---|---|
+| 컨테이너 | `bbb-prod-web-1` |
+| 경로 | `/app/apps/web/app/management/devices/download/page.js` (이미 §2 drift 중) |
+| 변경 | L535 sha256 리터럴 `e95d58351e0e...` → `9471b1ec3ad4...`, L532 게시일 r2→r3 |
+| sed 명령 | `docker exec bbb-prod-web-1 sed -i 's/<old>/<new>/g' .../page.js` (2회) |
+| Next.js 빌드 | 재실행, 새 BUILD_ID `2JAKlHGTMA5dWgPgVN-an` |
+| 컨테이너 재시작 | `docker restart bbb-prod-web-1` (~22초 healthy) |
+| **신규 drift** | **0** (기존 drift 재갱신) |
+
+### 3-5. Bug 3 [잔존] — 처리 안 함 (사용자 결정)
+
+- 위치: `bbb-prod-web-1:/app/apps/web/app/orders/hub/page.js:265`
+- root cause: `formatTimestamp(r.created_at)` 가 INSERT 시각 표시. `captured_at` 으로 바꾸면 receipt 시각 표시.
+- API 는 이미 `captured_at` 반환 중 (`/app/packages/db/src/postgres-store.js:9336`)
+- DB 검증: 638/638 rows `captured_at NOT NULL`
+- 1줄 fix 가능하지만 사용자 결정으로 본 r3 에서 진행 안 함 (drift +1 회피)
+- 처리 시기: 서버 이미지 정식 리빌드 시
+- 우회: 운영자가 `/orders/hub` 에서 행 클릭 → 상세 패널의 `Captured At` 필드 확인 가능
+
+### 3-6. 실행 이력
+
+| 순서 | 작업 | 시각 (UTC) |
+|---|---|---|
+| 1 | 클라이언트 r3 코드 fix (AdminAuthService DI, MainView DataGrid) | 2026-04-09 |
+| 2 | Parallels 빌드 → sha256 `9471b1ec...` | 2026-04-09 |
+| 3 | r2 백업 → 영속 볼륨 (`page-backups/2026-04-10/`) | 2026-04-09 17:41 |
+| 4 | r3 SCP → host staging | 2026-04-09 17:42 |
+| 5 | docker cp → 컨테이너 → 3곳 sha256 일치 검증 | 2026-04-09 17:42 |
+| 6 | manifest.json r3 갱신 | 2026-04-09 17:42 |
+| 7 | download page sha256 sed (기존 drift in-place) | 2026-04-09 17:42 |
+| 8 | r3 패치본 영속 백업 | 2026-04-09 17:42 |
+| 9 | Next.js 재빌드 + restart bbb-prod-web-1 | 2026-04-09 17:42 |
+| 10 | 매장 검증 (사용자 단계) | 후속 |
+
+### 3-7. 위험 포인트 (r3 신규)
+
+- §2 의 위험 포인트 그대로 (컨테이너 재생성 시 page.js 증발). r2 백업 외에 r3 패치본도 영속 볼륨에 보존되므로 복구 가능.
+- r2 백업이 영속 볼륨에 있어 r3 → r2 롤백도 가능.
+
+### 3-8. 복구 절차 (r3 → r2 롤백)
+
+```bash
+ssh -i ~/.ssh/id_ed25519_zigso min@zigso.kr "
+  docker exec bbb-prod-api-1 cp /app/storage/windows-agent/page-backups/2026-04-10/DeliveryOrderReceiver-v3.0.1-r2.exe.backup \
+    /app/storage/windows-agent/releases/3.0.1/DeliveryOrderReceiver-v3.0.1.exe
+  docker exec bbb-prod-api-1 cp /app/storage/windows-agent/page-backups/2026-04-10/manifest-r2.json.backup \
+    /app/storage/windows-agent/releases/3.0.1/manifest.json
+  # download page sha256 도 다시 r2 값으로 sed
+  docker exec bbb-prod-web-1 sed -i 's/9471b1ec3ad44746985d2b620b4034ce176ea4f8d188c60895715bf5946473ab/e95d58351e0e31ebba6390f0ff47caf7094e274d1949c245daeedc6518843895/g' /app/apps/web/app/management/devices/download/page.js
+  docker exec -w /app/apps/web bbb-prod-web-1 sh -c 'pnpm exec next build'
+  docker restart bbb-prod-web-1
+"
+# 그 후 ops_drift_log §3 에 'STATUS: rolled back to r2 <date>' 마킹
+```
+
+---
+
 ## drift 원칙 (반복)
 
 1. **새 drift 발생 시 반드시 본 파일에 entry 추가** (동일 커밋 또는 즉시 별도 커밋)
