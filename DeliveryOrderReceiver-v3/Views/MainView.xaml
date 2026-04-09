@@ -27,16 +27,28 @@
         </Border>
 
         <!-- 주문 목록 -->
+        <!-- r3: RowHeight 28 고정 + 내용 컬럼은 TemplateColumn 으로 한 줄 표시 (Bug 2) -->
         <DataGrid x:Name="OrdersGrid" Grid.Row="1" Margin="0,12,0,12"
                   AutoGenerateColumns="False"
                   CanUserAddRows="False" CanUserDeleteRows="False"
                   IsReadOnly="True" GridLinesVisibility="Horizontal"
-                  HeadersVisibility="Column" SelectionMode="Single">
+                  HeadersVisibility="Column" SelectionMode="Single"
+                  RowHeight="28">
             <DataGrid.Columns>
                 <DataGridTextColumn Header="#" Binding="{Binding Seq}" Width="40"/>
                 <DataGridTextColumn Header="시각 (UTC)" Binding="{Binding ReceivedAt}" Width="180"/>
                 <DataGridTextColumn Header="포트" Binding="{Binding Port}" Width="60"/>
-                <DataGridTextColumn Header="내용" Binding="{Binding Content}" Width="*"/>
+                <DataGridTemplateColumn Header="내용" Width="*">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding Content}"
+                                       TextWrapping="NoWrap"
+                                       TextTrimming="CharacterEllipsis"
+                                       ToolTip="{Binding Content}"
+                                       VerticalAlignment="Center"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
                 <DataGridTextColumn Header="상태" Binding="{Binding UploadStatus}" Width="80"/>
                 <DataGridTextColumn Header="오류" Binding="{Binding LastError}" Width="160"/>
             </DataGrid.Columns>
