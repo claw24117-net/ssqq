@@ -27,7 +27,7 @@ public partial class MainWindow : Window
         _serial = new SerialReceiverService();
         _ports = new PortService();
         _autoStart = new AutoStartService();
-        _adminAuth = new AdminAuthService();
+        _adminAuth = new AdminAuthService(_config);
 
         Loaded += async (_, _) =>
         {
