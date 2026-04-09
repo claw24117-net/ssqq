@@ -140,3 +140,53 @@
 
 **다음 세션용 현재 상태 (한 줄)**:
 v3.0.1 r2 운영 beta 격리 배포 중, 매장 동작 확인, page.js drift +1 기록됨, git import 대기 (P6 커밋+push로 완료 예정).
+
+---
+
+### 2026-04-09 (v3.0.1 r2 운영 1일차 검증)
+
+**범위**: git-only (문서만)
+**브랜치**: `work/v2.0.4-reconciliation`
+**drift 발생**: no
+
+**시작 전 상태**:
+- git: `320ef03` (ops-drift + session-format 커밋 완료), origin 동기화
+- ops: v3.0.1 r2 운영 중 (어제 배포), com0com COM19 ↔ COM20 사용
+- 매장 질문: v3.0.1의 포트 설정 방법 (v2.0.4와 다른가?)
+
+**작업 내용**:
+1. 사용자 질문: "가상포트 COM19/COM20 이미 있는데 v3.0.1 설정 방법?"
+2. v3.0.1 코드 re-read:
+   - `Views/MainView.xaml.cs:41-50` — `SerialPort.GetPortNames()` 자동 스캔 → 드롭다운
+   - `Views/SettingsView.xaml.cs:53-76` — `CreatePortButton_Click` 은 `setupc install` (새 포트 생성용)
+3. 답변: 설정 창 불필요. 메인 화면에서 COM19/COM20 중 하나 선택 → 수신 시작
+4. 사용자 확인: "수신 됐어" → 포트 선택 성공
+5. DB 검증 쿼리 실행:
+   - upload_jobs 최근 15건 (receipt_raw) 전부 `completed`
+   - 오늘 누적 58건 completed / 0 failed
+   - raw_receipts 내용 확인: 배민 / 쿠팡이츠 / **요기요** 3개 플랫폼 정상 수신
+
+**발견된 문제/이슈**:
+- [관찰] v3.0.1 설정 창에 "기존 포트 등록" 버튼 없음 — 이미 존재하는 com0com 쌍을 config.CreatedPortA/B에 등록하는 UI 부재. 현재는 config에 안 저장돼도 메인 화면에서 LastPort로 저장됨 (동작 무관). 향후 r3에서 "포트 등록" 버튼 추가 후보.
+- [해결] 사용자 혼동: 설정 창이 "포트 생성 전용"이라는 걸 몰라서 기존 포트 등록 방법을 찾음 → 설명으로 해소
+- [관찰] 플랫폼 ID/store ID는 여전히 모두 "unknown" (r2 fix 하드코딩). 향후 ESC/POS 텍스트 첫 줄에서 "쿠팡이츠 주문"/"배달의민족 주문"/"요기요 주문" 추출해서 채울 수 있음 — 별도 트랙
+
+**끝난 후 상태**:
+- git: 이 entry 추가 외에는 변경 없음
+- ops: v3.0.1 r2 계속 운영, 매장에서 3개 플랫폼 지속 수신
+- 누적 통계: 58 completed / 0 failed (UTC 2026-04-08 15:00 ~ 04-09 12:35)
+- 5~30분 간격 실시간 수신
+
+**변경 파일** (git 기준):
+- `ssqq/work_log.md` (이 entry 추가만)
+
+**검증**:
+- `docker exec bbb-prod-postgres-1 psql -U bbb -d bbb -c "SELECT COUNT(*) ... FROM upload_jobs WHERE upload_type='receipt_raw' AND received_at >= '2026-04-08T15:00:00Z'"` → 58/58 completed, 0 failed
+- raw_receipts 샘플 15건: 배민 동삭동/세교동/통복동/평택동, 쿠팡이츠 211XDH/0C6PYJ/08G7S7/..., 요기요 #9381, 매장천사 테스트 1건
+- [해결] r2 UploadService.cs fix (`platformId = "unknown"`) 실전 검증 완료 — 24시간 0 failure
+
+**커밋**: (pending — 이 entry 추가 후 단일 커밋 예정)
+- `docs: 2026-04-09 v3.0.1 r2 1일차 운영 검증 (58/58 completed)`
+
+**다음 세션용 현재 상태 (한 줄)**:
+v3.0.1 r2 운영 1일차, 매장 3개 플랫폼(배민/쿠팡이츠/요기요) 58/58 무결점. B-4/B-5/C-3/C-4 처음부터 박은 fix 실전 검증 OK. 향후 개선 후보: platformId 자동 추출, 설정 창 "기존 포트 등록" 버튼.
