@@ -29,6 +29,21 @@ public class OrderRecord
 
     public string? LastError { get; set; }
 
+    /// <summary>KST 표시용 (v3.0.2). 서버 전송은 ReceivedAt(UTC) 그대로.</summary>
+    [JsonIgnore]
+    public string ReceivedAtKst
+    {
+        get
+        {
+            if (!DateTime.TryParse(ReceivedAt, null,
+                System.Globalization.DateTimeStyles.RoundtripKind, out var dt))
+                return ReceivedAt;
+            var kst = TimeZoneInfo.ConvertTimeFromUtc(dt.ToUniversalTime(),
+                TimeZoneInfo.FindSystemTimeZoneById("Korea Standard Time"));
+            return kst.ToString("yyyy-MM-dd HH:mm:ss");
+        }
+    }
+
     public DateTime ReceivedAtUtc =>
         DateTime.TryParse(ReceivedAt, null, System.Globalization.DateTimeStyles.RoundtripKind, out var dt)
             ? dt.ToUniversalTime()

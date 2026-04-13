@@ -36,7 +36,7 @@
                   RowHeight="28">
             <DataGrid.Columns>
                 <DataGridTextColumn Header="#" Binding="{Binding Seq}" Width="40"/>
-                <DataGridTextColumn Header="시각 (UTC)" Binding="{Binding ReceivedAt}" Width="180"/>
+                <DataGridTextColumn Header="시각" Binding="{Binding ReceivedAtKst}" Width="150"/>
                 <DataGridTextColumn Header="포트" Binding="{Binding Port}" Width="60"/>
                 <DataGridTemplateColumn Header="내용" Width="*">
                     <DataGridTemplateColumn.CellTemplate>
