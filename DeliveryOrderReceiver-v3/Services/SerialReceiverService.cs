@@ -24,7 +24,7 @@ public class SerialReceiverService
     private CancellationTokenSource? _cts;
     private Timer? _idleTimer;
     private Timer? _heartbeatTimer;
-    private const int IdleFlushMs = 800;
+    private const int IdleFlushMs = 500; // v3.0.3: v2.0.4와 동일 (800→500)
     private const int HeartbeatIntervalMs = 30_000; // 30초
     private readonly object _bufferLock = new();
     private readonly object _reconnectLock = new();
@@ -51,12 +51,19 @@ public class SerialReceiverService
         _cts = new CancellationTokenSource();
         try
         {
-            _port = new SerialPort(portName, baudRate, Parity.None, 8, StopBits.One)
+            // v3.0.3: v2.0.4와 동일한 SerialPort 설정 (ReadTimeout/ReadBufferSize 제거)
+            // ReadTimeout=-1(기본)이 .NET SerialPort 내부 스레드 풀 안정성에 중요.
+            // ReadTimeout>0 설정 시 장시간 후 DataReceived 이벤트가 silent하게 멈추는 알려진 .NET 이슈.
+            _port = new SerialPort
             {
-                ReadBufferSize = 8192,
-                ReadTimeout = 1000
+                PortName = portName,
+                BaudRate = baudRate,
+                DataBits = 8,
+                Parity = Parity.None,
+                StopBits = StopBits.One
             };
             _port.DataReceived += OnDataReceived;
+            _port.ErrorReceived += OnPortError; // v3.0.3: v2.0.4처럼 에러 이벤트 구독
             _port.Open();
 
             CurrentPort = portName;
@@ -88,6 +95,7 @@ public class SerialReceiverService
             if (_port != null)
             {
                 _port.DataReceived -= OnDataReceived;
+                _port.ErrorReceived -= OnPortError;
                 if (_port.IsOpen)
                 {
                     // 종료 전 잔여 버퍼 flush
@@ -228,6 +236,12 @@ public class SerialReceiverService
         {
             ErrorOccurred?.Invoke(this, TranslateError(ex.Message));
         }
+    }
+
+    /// <summary>v3.0.3: 포트 하드웨어 에러 핸들러 (v2.0.4에 있었으나 v3.0.1에서 누락)</summary>
+    private void OnPortError(object sender, SerialErrorReceivedEventArgs e)
+    {
+        ErrorOccurred?.Invoke(this, $"포트 에러: {e.EventType}");
     }
 
     private static string TranslateError(string raw)

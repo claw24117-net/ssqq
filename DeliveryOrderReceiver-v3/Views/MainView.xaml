@@ -4,6 +4,7 @@
     <Grid Margin="16">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
@@ -26,9 +27,17 @@
             </Grid>
         </Border>
 
+        <!-- v3.0.3: 날짜 선택 + 주문 건수 -->
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,8,0,0">
+            <TextBlock Text="조회 날짜:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+            <DatePicker x:Name="DateSelector" Width="140"
+                        SelectedDateChanged="DateSelector_Changed"/>
+            <TextBlock x:Name="OrderCountLabel" VerticalAlignment="Center"
+                       Margin="12,0,0,0" Foreground="{StaticResource MutedBrush}"/>
+        </StackPanel>
+
         <!-- 주문 목록 -->
-        <!-- r3: RowHeight 28 고정 + 내용 컬럼은 TemplateColumn 으로 한 줄 표시 (Bug 2) -->
-        <DataGrid x:Name="OrdersGrid" Grid.Row="1" Margin="0,12,0,12"
+        <DataGrid x:Name="OrdersGrid" Grid.Row="2" Margin="0,8,0,12"
                   AutoGenerateColumns="False"
                   CanUserAddRows="False" CanUserDeleteRows="False"
                   IsReadOnly="True" GridLinesVisibility="Horizontal"
@@ -55,7 +64,7 @@
         </DataGrid>
 
         <!-- 하단 액션 -->
-        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Left">
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Left">
             <ComboBox x:Name="PortCombo" Width="120" Margin="0,0,8,0" IsEditable="True"/>
             <ComboBox x:Name="BaudCombo" Width="100" Margin="0,0,16,0">
                 <ComboBoxItem>1200</ComboBoxItem>

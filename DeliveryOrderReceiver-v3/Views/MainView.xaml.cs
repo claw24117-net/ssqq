@@ -33,6 +33,11 @@ public partial class MainView : UserControl
 
         OrdersGrid.ItemsSource = Orders;
 
+        // v3.0.3: DatePicker 초기값 = 오늘 (KST)
+        var kstNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow,
+            TimeZoneInfo.FindSystemTimeZoneById("Korea Standard Time"));
+        DateSelector.SelectedDate = kstNow.Date;
+
         // 시작 시 'Pending' → 'Failed' (D-7)
         _storage.SweepStaleOnStartup();
         ReloadOrders();
@@ -73,11 +78,36 @@ public partial class MainView : UserControl
         };
     }
 
+    /// <summary>v3.0.3: 선택된 날짜 기준으로 주문 로드, 시간 내림차순</summary>
     private void ReloadOrders()
     {
         Orders.Clear();
-        foreach (var o in _storage.LoadToday().OrderByDescending(o => o.Seq))
+        var selectedDate = DateSelector?.SelectedDate;
+        List<OrderRecord> list;
+
+        if (selectedDate.HasValue)
+        {
+            // KST 날짜 → UTC로 변환해서 로드
+            var kstZone = TimeZoneInfo.FindSystemTimeZoneById("Korea Standard Time");
+            var utcDate = TimeZoneInfo.ConvertTimeToUtc(
+                DateTime.SpecifyKind(selectedDate.Value, DateTimeKind.Unspecified), kstZone);
+            list = _storage.LoadDate(utcDate);
+        }
+        else
+        {
+            list = _storage.LoadToday();
+        }
+
+        // v3.0.3: 시간 내림차순 (최신이 맨 위)
+        foreach (var o in list.OrderByDescending(o => o.ReceivedAtUtc))
             Orders.Add(o);
+
+        OrderCountLabel.Text = $"총 {Orders.Count}건";
+    }
+
+    private void DateSelector_Changed(object? sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        ReloadOrders();
     }
 
     private async void OnOrderReceived(object? sender, OrderRecord order)
