@@ -23,7 +23,10 @@
                 <TextBlock x:Name="StatusLabel" Grid.Column="1"
                            VerticalAlignment="Center" FontWeight="SemiBold"
                            Text="대기 중"/>
-                <Button Grid.Column="2" Content="설정" Click="SettingsButton_Click"/>
+                <StackPanel Grid.Column="2" Orientation="Horizontal">
+                    <Button Content="로그아웃" Click="LogoutButton_Click" Margin="0,0,8,0"/>
+                    <Button Content="설정" Click="SettingsButton_Click"/>
+                </StackPanel>
             </Grid>
         </Border>
 

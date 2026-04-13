@@ -218,6 +218,12 @@ public partial class MainView : UserControl
         }
     }
 
+    private void LogoutButton_Click(object sender, RoutedEventArgs e)
+    {
+        _serial.Stop();
+        LogoutRequested?.Invoke(this, EventArgs.Empty);
+    }
+
     private void SettingsButton_Click(object sender, RoutedEventArgs e) =>
         SettingsRequested?.Invoke(this, EventArgs.Empty);
 

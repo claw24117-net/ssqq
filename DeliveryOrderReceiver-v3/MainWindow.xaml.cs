@@ -29,16 +29,9 @@ public partial class MainWindow : Window
         _autoStart = new AutoStartService();
         _adminAuth = new AdminAuthService(_config);
 
-        Loaded += async (_, _) =>
-        {
-            // 자동 로그인 시도 (BUG-001 fix: 토큰 삭제 코드 없음)
-            if (_config.AutoLogin && !string.IsNullOrEmpty(_config.Token))
-            {
-                var ok = await _auth.ValidateOrRefreshAsync();
-                if (ok) { ShowMain(); return; }
-            }
-            ShowLogin();
-        };
+        // v3.0.4: 항상 로그인 화면 먼저 (여러 매장이 각자 아이디로 사용)
+        // 저장된 이메일/패스워드는 로그인 화면에 미리 채워짐
+        Loaded += (_, _) => ShowLogin();
     }
 
     public void ShowLogin()
