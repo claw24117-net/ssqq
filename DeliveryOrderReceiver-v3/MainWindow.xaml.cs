@@ -20,6 +20,10 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
 
+        // v3.0.5: 버전 자동 표시 (csproj Version 에서 가져옴)
+        var ver = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
+        Title = $"배달 주문 수신기 v{ver?.ToString(3) ?? "3.0.5"}";
+
         _config = LoginConfig.Load();
         _auth = new AuthService(_config);
         _upload = new UploadService(_config, _auth);

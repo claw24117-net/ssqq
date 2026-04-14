@@ -71,11 +71,32 @@ public partial class MainView : UserControl
         _serial.OrderReceived += OnOrderReceived;
         _serial.ErrorOccurred += OnError;
 
-        Unloaded += (_, _) =>
+        // v3.0.5: Unloaded 에서 이벤트 해제 제거 — WPF 최소화 시 Unloaded fire 되면서
+        // serial 이벤트가 해제돼서 새 주문이 화면에 안 들어가던 버그 fix.
+        // 대신 IsVisibleChanged 로 복원 시 화면 갱신.
+        IsVisibleChanged += (_, _) =>
         {
-            _serial.OrderReceived -= OnOrderReceived;
-            _serial.ErrorOccurred -= OnError;
+            if (IsVisible) ReloadOrders();
         };
+
+        // v3.0.5: 설정 끝난 상태면 자동 수신 시작 (매번 [수신 시작] 안 눌러도 됨)
+        if (!string.IsNullOrEmpty(_config.LastPort) && _config.LastBaudRate > 0)
+        {
+            Loaded += (_, _) => AutoStartReceiving();
+        }
+    }
+
+    /// <summary>v3.0.5: 로그인 후 자동 수신 시작 (config 에 LastPort 있을 때)</summary>
+    private void AutoStartReceiving()
+    {
+        var port = _config.LastPort;
+        var baud = _config.LastBaudRate;
+        _serial.Start(port, baud);
+        if (_serial.IsRunning)
+        {
+            StatusDot.Fill = (Brush)FindResource("SuccessBrush");
+            SetStatus($"자동 수신 시작 ({port} @ {baud})", true);
+        }
     }
 
     /// <summary>v3.0.3: 선택된 날짜 기준으로 주문 로드, 시간 내림차순</summary>
