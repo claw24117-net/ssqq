@@ -35,8 +35,14 @@ public class OrderStorageService
         Directory.CreateDirectory(OrdersDir);
     }
 
-    private static string FileForDate(DateTime dateUtc) =>
-        Path.Combine(OrdersDir, $"orders_{dateUtc:yyyy-MM-dd}.json");
+    // v3.0.6: KST 날짜 기준으로 파일 저장 (UTC 기준이면 KST 하루가 UTC 파일 2개에 걸림)
+    private static readonly TimeZoneInfo KstZone = TimeZoneInfo.FindSystemTimeZoneById("Korea Standard Time");
+
+    private static string FileForDate(DateTime dateUtc)
+    {
+        var kst = TimeZoneInfo.ConvertTimeFromUtc(dateUtc.ToUniversalTime(), KstZone);
+        return Path.Combine(OrdersDir, $"orders_{kst:yyyy-MM-dd}.json");
+    }
 
     public List<OrderRecord> LoadDate(DateTime dateUtc)
     {

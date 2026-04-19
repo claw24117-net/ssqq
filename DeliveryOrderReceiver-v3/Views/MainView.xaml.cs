@@ -108,10 +108,11 @@ public partial class MainView : UserControl
 
         if (selectedDate.HasValue)
         {
-            // KST 날짜 → UTC로 변환해서 로드
+            // v3.0.6: FileForDate가 KST 변환하므로 날짜를 UTC로 만들어서 전달
+            // KST 날짜의 시작(00:00) = UTC 전날 15:00
             var kstZone = TimeZoneInfo.FindSystemTimeZoneById("Korea Standard Time");
-            var utcDate = TimeZoneInfo.ConvertTimeToUtc(
-                DateTime.SpecifyKind(selectedDate.Value, DateTimeKind.Unspecified), kstZone);
+            var kstMidnight = DateTime.SpecifyKind(selectedDate.Value, DateTimeKind.Unspecified);
+            var utcDate = TimeZoneInfo.ConvertTimeToUtc(kstMidnight, kstZone);
             list = _storage.LoadDate(utcDate);
         }
         else
