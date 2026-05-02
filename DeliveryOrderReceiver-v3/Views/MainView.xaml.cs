@@ -139,18 +139,13 @@ public partial class MainView : UserControl
             var saved = _storage.Save(order);
             Orders.Insert(0, saved);
 
-            if (saved.UploadStatus == UploadStatus.Duplicate)
-            {
-                SetStatus("중복 주문 감지 (전송 안 함)", false);
-                return;
-            }
-
-            // 즉시 업로드 시도
+            // v3.0.7: 로컬 중복 감지 제거. 항상 업로드 시도 → 서버 응답으로 판단
+            // (서버가 409 IDEMPOTENCY_KEY_REUSED 반환하면 result.Duplicate=true)
             var result = await _upload.UploadAsync(saved);
             if (result.Success)
             {
                 _storage.UpdateStatus(saved.Hash, result.Duplicate ? UploadStatus.Duplicate : UploadStatus.Success);
-                SetStatus("업로드 성공", true);
+                SetStatus(result.Duplicate ? "중복 주문 (서버에서 인식)" : "업로드 성공", true);
             }
             else
             {

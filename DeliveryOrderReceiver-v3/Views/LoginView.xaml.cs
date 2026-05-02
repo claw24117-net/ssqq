@@ -61,16 +61,19 @@ public partial class LoginView : UserControl
             _config.SaveLoginInfo = SaveLoginInfoCheck.IsChecked == true;
             _config.AutoLogin = AutoLoginCheck.IsChecked == true;
 
+            // v3.0.7: ServerUrl 은 항상 사용자 입력값 유지 (하드코딩 default 제거)
+            // 다른 서버 (예: api.dvvb.io) 로 전환할 때 SaveLoginInfo 미체크로 zigso.kr 로
+            // 강제 리셋되던 버그 해소
+            _config.ServerUrl = serverUrl;
             if (_config.SaveLoginInfo)
             {
                 _config.Password = pwd;
             }
             else
             {
-                // 미체크 시 디스크에서만 자격 증명 제거 (현재 메모리/세션 토큰은 유지)
+                // 미체크 시 이메일/패스워드만 제거 (서버 주소는 유지)
                 _config.Email = string.Empty;
                 _config.Password = string.Empty;
-                _config.ServerUrl = "https://agent.zigso.kr";
             }
 
             _config.Save();

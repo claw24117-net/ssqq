@@ -84,7 +84,10 @@ public class OrderStorageService
     }
 
     /// <summary>
-    /// 새 주문 추가. 7일 내 중복이면 Duplicate 상태로 마킹.
+    /// 새 주문 추가.
+    /// v3.0.7: 로컬 중복 감지 제거. 서버 idempotency-key 가 처리하므로 클라이언트는 항상
+    /// 업로드 시도. 서버 변경(예: 다른 서버로 전환) 시 로컬 hash 잔존으로 새 서버에 업로드
+    /// 안 되던 문제 해소.
     /// </summary>
     public OrderRecord Save(OrderRecord order)
     {
@@ -93,13 +96,8 @@ public class OrderStorageService
             var dateUtc = order.ReceivedAtUtc;
             var list = LoadDate(dateUtc);
 
-            if (IsDuplicate(order.Hash, dateUtc))
-            {
-                order.UploadStatus = UploadStatus.Duplicate;
-            }
-
             order.Seq = (list.Count == 0 ? 0 : list.Max(o => o.Seq)) + 1;
-            order.IdempotencyKey = order.Hash; // 내용 해시 = 멱등 키
+            order.IdempotencyKey = order.Hash; // 내용 해시 = 멱등 키 (서버에서 dedup)
             list.Add(order);
 
             WriteAll(dateUtc, list);
