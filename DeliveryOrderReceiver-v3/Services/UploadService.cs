@@ -85,7 +85,8 @@ public class UploadService
                 capturedAt = order.ReceivedAt, // 이미 UTC ISO-8601 (W-TIME)
                 rawChecksum = order.Hash,
                 decodedText = order.Content,
-                port = order.Port
+                port = order.Port,
+                branchName = _config.BranchName // v3.1.0: 지점명 (선택, 빈 값 가능)
             };
 
             using var req = new HttpRequestMessage(HttpMethod.Post, url)

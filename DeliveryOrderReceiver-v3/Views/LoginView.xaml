@@ -18,7 +18,13 @@
                 <PasswordBox x:Name="PasswordBox" Margin="0,0,0,12"/>
 
                 <TextBlock Text="서버 주소" Margin="0,0,0,4"/>
-                <TextBox x:Name="ServerUrlBox" Text="https://agent.zigso.kr" Margin="0,0,0,16"/>
+                <TextBox x:Name="ServerUrlBox" Text="https://agent.zigso.kr" Margin="0,0,0,12"/>
+
+                <TextBlock Text="지점명 (선택, 한글/영문)" Margin="0,0,0,4"/>
+                <TextBox x:Name="BranchNameBox" Margin="0,0,0,16"
+                         InputMethod.IsInputMethodEnabled="True"
+                         InputMethod.PreferredImeState="On"
+                         InputMethod.PreferredImeConversionMode="Native"/>
 
                 <CheckBox x:Name="SaveLoginInfoCheck" Content="로그인 정보 저장" Margin="0,0,0,4"/>
                 <CheckBox x:Name="AutoLoginCheck" Content="자동 로그인" Margin="0,0,0,16"/>

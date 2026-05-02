@@ -38,6 +38,11 @@ public partial class MainView : UserControl
             TimeZoneInfo.FindSystemTimeZoneById("Korea Standard Time"));
         DateSelector.SelectedDate = kstNow.Date;
 
+        // v3.1.0: 지점명 표시 (입력 안 했으면 빈 라벨)
+        BranchLabel.Text = string.IsNullOrEmpty(_config.BranchName)
+            ? string.Empty
+            : $"[지점] {_config.BranchName}";
+
         // 시작 시 'Pending' → 'Failed' (D-7)
         _storage.SweepStaleOnStartup();
         ReloadOrders();

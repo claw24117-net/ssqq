@@ -31,6 +31,9 @@ public class LoginConfig
     public string CreatedPortA { get; set; } = string.Empty;
     public string CreatedPortB { get; set; } = string.Empty;
 
+    /// <summary>v3.1.0: 지점명 (한글/영문 모두 허용, 같은 계정 여러 매장 식별용). 빈 값 허용.</summary>
+    public string BranchName { get; set; } = string.Empty;
+
     // 디스크 직렬화용 (DPAPI 암호화 base64)
     [JsonPropertyName("tokenEncrypted")]
     public string TokenEncrypted { get; set; } = string.Empty;

@@ -23,6 +23,7 @@ public partial class LoginView : UserControl
         // 저장된 값 복원
         EmailBox.Text = _config.Email;
         ServerUrlBox.Text = string.IsNullOrEmpty(_config.ServerUrl) ? "https://agent.zigso.kr" : _config.ServerUrl;
+        BranchNameBox.Text = _config.BranchName;  // v3.1.0: 지점명 복원
         SaveLoginInfoCheck.IsChecked = _config.SaveLoginInfo;
         AutoLoginCheck.IsChecked = _config.AutoLogin;
         if (_config.SaveLoginInfo && !string.IsNullOrEmpty(_config.Password))
@@ -37,6 +38,7 @@ public partial class LoginView : UserControl
         var email = EmailBox.Text.Trim();
         var pwd = PasswordBox.Password;
         var serverUrl = ServerUrlBox.Text.Trim();
+        var branchName = BranchNameBox.Text.Trim();  // v3.1.0: 지점명 (한글/영문, 빈 값 허용)
 
         if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(pwd))
         {
@@ -65,13 +67,14 @@ public partial class LoginView : UserControl
             // 다른 서버 (예: api.dvvb.io) 로 전환할 때 SaveLoginInfo 미체크로 zigso.kr 로
             // 강제 리셋되던 버그 해소
             _config.ServerUrl = serverUrl;
+            _config.BranchName = branchName;  // v3.1.0: 지점명 항상 저장 (서버 전송용)
             if (_config.SaveLoginInfo)
             {
                 _config.Password = pwd;
             }
             else
             {
-                // 미체크 시 이메일/패스워드만 제거 (서버 주소는 유지)
+                // 미체크 시 이메일/패스워드만 제거 (서버 주소/지점명은 유지)
                 _config.Email = string.Empty;
                 _config.Password = string.Empty;
             }
